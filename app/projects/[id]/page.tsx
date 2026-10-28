@@ -6,8 +6,8 @@ import { useState } from "react";
 import { useStore } from "@/lib/store";
 import { projectHealth } from "@/lib/engine";
 import { daysBetween, fmt, tMinus, today } from "@/lib/dates";
-import { ROLE_LABEL, type Role } from "@/lib/types";
-import { HealthChip } from "@/components/ui";
+import { INITIATIVE, PIPELINE_LABEL, ROLE_LABEL, type Role } from "@/lib/types";
+import { HealthChip, KindChip } from "@/components/ui";
 import { TaskRow } from "@/components/TaskRow";
 import { NewTaskButton } from "@/components/NewTask";
 
@@ -40,14 +40,16 @@ export default function ProjectPage() {
       <div className="card p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="h-entry text-2xl">{project.name}</h1>
+            <KindChip kind={event.kind} />
+            <h1 className="h-entry mt-1.5 text-2xl">{project.name}</h1>
             <div className="text-sm text-ink/60">
-              {fmt(event.date, { weekday: "long", month: "long", day: "numeric", year: "numeric" })} · {event.venue}
+              {INITIATIVE[event.kind].dateLabel}: {fmt(event.date, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+              {event.venue && ` · ${event.venue}`}
             </div>
           </div>
           <div className="text-right">
             <HealthChip health={health} />
-            <div className="mt-1 font-serif text-xl font-semibold">T-{daysBetween(t, event.date)}</div>
+            <div className="mt-1 font-serif text-xl font-semibold">{daysBetween(t, event.date) >= 0 ? `T-${daysBetween(t, event.date)}` : `T+${-daysBetween(t, event.date)}`}</div>
           </div>
         </div>
         {reasons.length > 0 && <div className="mt-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">⚠ {reasons.join(" · ")}</div>}
@@ -60,7 +62,7 @@ export default function ProjectPage() {
           </div>
           <div className="rounded-lg bg-paper p-2">
             <div className="font-serif text-lg font-semibold">{sponsors.length}</div>
-            <div className="text-[11px] text-ink/50">sponsors / partners</div>
+            <div className="text-[11px] text-ink/50">{event.kind === "campaign" ? "client deals" : "sponsors / partners"}</div>
           </div>
           <div className="rounded-lg bg-paper p-2">
             <div className="font-serif text-lg font-semibold">{posts.length}</div>
@@ -70,7 +72,7 @@ export default function ProjectPage() {
         {sponsors.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
             {sponsors.map((d) => (
-              <Link key={d.id} href={`/deals/${d.id}`} className="chip bg-gold/20 text-gold-600 hover:underline">
+              <Link key={d.id} href={`/deals/${d.id}`} className="chip bg-gold/20 text-gold-600 hover:underline" title={PIPELINE_LABEL[d.pipeline]}>
                 {state.companies.find((c) => c.id === d.companyId)!.name}
               </Link>
             ))}

@@ -1,7 +1,7 @@
 "use client";
 
-import type { Health, Role, Task, User } from "@/lib/types";
-import { ROLE_LABEL } from "@/lib/types";
+import type { Health, InitiativeKind, Role, Task, User } from "@/lib/types";
+import { INITIATIVE, ROLE_LABEL } from "@/lib/types";
 
 export function Avatar({ user, size = 28 }: { user?: User | null; size?: number }) {
   if (!user) return null;
@@ -24,6 +24,7 @@ const ROLE_STYLE: Record<Role, string> = {
   creative: "bg-pink-100 text-pink-800",
   social: "bg-amber-100 text-amber-900",
   eventops: "bg-emerald-100 text-emerald-800",
+  instructor: "bg-orange-100 text-orange-800",
 };
 
 export function RoleChip({ role }: { role: Role }) {
@@ -96,6 +97,20 @@ export function AvatarStack({ users, size = 22 }: { users: (User | undefined)[];
           <Avatar user={u} size={size} />
         </span>
       ))}
+    </span>
+  );
+}
+
+const KIND_STYLE: Record<InitiativeKind, string> = {
+  campaign: "bg-cyan/15 text-cyan-600",
+  course: "bg-gold/20 text-gold-600",
+  event: "bg-violet-100 text-violet-800",
+};
+
+export function KindChip({ kind }: { kind: InitiativeKind }) {
+  return (
+    <span className={`chip gap-1 ${KIND_STYLE[kind]}`}>
+      {INITIATIVE[kind].icon} {INITIATIVE[kind].label}
     </span>
   );
 }

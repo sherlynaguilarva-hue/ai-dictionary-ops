@@ -166,6 +166,90 @@ function deliverableTasks(state: State, projectId: string, eventDate: string, co
       newTask(state, { projectId, title: `Schedule speaking slot for ${company.name}`, role: "admin", due: maxDate(on, addDays(eventDate, -14)), source: "contract", deliverableId: d.id, companyId }).title,
     );
   }
+  // Agency work for clients. T-0 is the campaign launch.
+  for (const d of dels.filter((d) => d.kind === "content")) {
+    const slots: SocialPost[] = Array.from({ length: d.quantity }, (_, i) => ({
+      id: uid("pst"),
+      projectId,
+      title: `${company.name} post ${i + 1}/${d.quantity}`,
+      date: maxDate(on, addDays(eventDate, Math.floor((i * 30) / d.quantity))),
+      status: "slot" as const,
+      companyId,
+      deliverableId: d.id,
+    }));
+    state.posts.push(...slots);
+    const copy = newTask(state, {
+      projectId,
+      title: `Write captions for ${d.quantity} ${company.name} posts`,
+      role: "social",
+      due: maxDate(on, addDays(eventDate, -10)),
+      source: "contract",
+      deliverableId: d.id,
+      companyId,
+    });
+    const design = newTask(state, {
+      projectId,
+      title: `Design ${d.quantity} post graphics for ${company.name}`,
+      role: "creative",
+      due: maxDate(on, addDays(eventDate, -7)),
+      source: "contract",
+      deliverableId: d.id,
+      companyId,
+      dependsOn: [copy.id],
+      approverRoles: ["owner"],
+      checklistItems: d.quantity <= 20 ? slots.map((x) => x.title) : undefined,
+    });
+    created.push(copy.title, design.title);
+    projectTasks().find((t) => t.templateKey === "client-approve")?.dependsOn.push(design.id);
+  }
+  for (const d of dels.filter((d) => d.kind === "video")) {
+    const video = newTask(state, {
+      projectId,
+      title: `Produce ${d.quantity} short-form video${d.quantity > 1 ? "s" : ""} for ${company.name}`,
+      role: "creative",
+      due: maxDate(on, addDays(eventDate, -5)),
+      source: "contract",
+      deliverableId: d.id,
+      companyId,
+      requiredAttachment: "Final video files",
+      approverRoles: ["owner"],
+      checklistItems: Array.from({ length: Math.min(d.quantity, 20) }, (_, i) => `Video ${i + 1}: script → shoot → edit`),
+    });
+    created.push(video.title);
+    projectTasks().find((t) => t.templateKey === "client-approve")?.dependsOn.push(video.id);
+  }
+  for (const d of dels.filter((d) => d.kind === "ads")) {
+    created.push(
+      newTask(state, {
+        projectId,
+        title: `Set up ad campaign for ${company.name}`,
+        role: "social",
+        due: maxDate(on, addDays(eventDate, -2)),
+        source: "contract",
+        deliverableId: d.id,
+        companyId,
+        priority: "high",
+        approverRoles: ["owner"],
+        checklistItems: ["Audiences", "Budget split & schedule", "Pixel / conversion tracking", "Ad creatives uploaded"],
+      }).title,
+    );
+  }
+  for (const d of dels.filter((d) => d.kind === "report")) {
+    created.push(
+      newTask(state, {
+        projectId,
+        title: `Performance report for ${company.name}`,
+        role: "sales",
+        due: addDays(maxDate(on, eventDate), 30),
+        source: "contract",
+        deliverableId: d.id,
+        companyId,
+        requiredAttachment: "Report PDF",
+        approverRoles: ["owner"],
+      }).title,
+    );
+  }
+
   for (const d of dels.filter((d) => d.kind === "other")) {
     created.push(
       newTask(state, { projectId, title: `${company.name}: ${d.description}`, role: "admin", due: maxDate(on, addDays(eventDate, -14)), source: "contract", deliverableId: d.id, companyId }).title,
@@ -183,7 +267,8 @@ export function winDeal(state: State, dealId: string, on: string): { projectId: 
   const company = state.companies.find((c) => c.id === deal.companyId)!;
 
   deal.stage = "won";
-  log(state, { message: `${company.name} deal marked Won (₱${deal.value.toLocaleString()}).`, href: `/deals/${deal.id}` });
+  const label = deal.pipeline === "client" ? "client" : deal.pipeline;
+  log(state, { message: `${company.name} ${label} deal marked Won (₱${deal.value.toLocaleString()}).`, href: `/deals/${deal.id}` });
 
   const existed = Boolean(event.projectId);
   const projectId = createProjectFromTemplate(state, event.id, on);
@@ -194,6 +279,14 @@ export function winDeal(state: State, dealId: string, on: string): { projectId: 
     href: `/projects/${projectId}`,
   });
   return { projectId, created };
+}
+
+/** Start a project that doesn't come from a deal (e.g. our own course launch). */
+export function createInitiative(state: State, input: { name: string; templateId: string; date: string; venue: string }, on: string): string {
+  const template = state.templates.find((t) => t.id === input.templateId)!;
+  const eventId = uid("evt");
+  state.events.push({ id: eventId, kind: template.kind, ...input });
+  return createProjectFromTemplate(state, eventId, on);
 }
 
 export function isOverdue(t: Task, on: string) {

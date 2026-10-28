@@ -1,12 +1,13 @@
-export type Role = "owner" | "admin" | "sales" | "creative" | "social" | "eventops";
+export type Role = "owner" | "admin" | "sales" | "creative" | "social" | "eventops" | "instructor";
 
 export const ROLE_LABEL: Record<Role, string> = {
   owner: "Owner",
   admin: "Admin / PM",
-  sales: "Sales / Partnerships",
+  sales: "Sales / Accounts",
   creative: "Creative",
   social: "Social / Content",
   eventops: "Event Ops",
+  instructor: "Instructor",
 };
 
 export type User = { id: string; name: string; roles: Role[]; color: string };
@@ -18,7 +19,13 @@ export type Company = {
   contactEmail: string;
 };
 
-export type Pipeline = "sponsor" | "partner";
+export type Pipeline = "client" | "sponsor" | "partner";
+
+export const PIPELINE_LABEL: Record<Pipeline, string> = {
+  client: "Clients",
+  sponsor: "Sponsors",
+  partner: "Partners",
+};
 
 export const STAGES = [
   "lead",
@@ -57,7 +64,18 @@ export type Deal = {
   contractId?: string;
 };
 
-export type DeliverableKind = "logo" | "social" | "booth" | "speaking" | "other";
+export type DeliverableKind =
+  // sponsor / partner benefits
+  | "logo"
+  | "social"
+  | "booth"
+  | "speaking"
+  // agency work for clients
+  | "content"
+  | "video"
+  | "ads"
+  | "report"
+  | "other";
 
 export type Deliverable = {
   id: string;
@@ -77,8 +95,18 @@ export type Contract = {
   deliverables: Deliverable[];
 };
 
+/** What a project is anchored to. Its date is T-0 (event day, launch day, campaign start). */
+export type InitiativeKind = "event" | "campaign" | "course";
+
+export const INITIATIVE: Record<InitiativeKind, { label: string; icon: string; dateLabel: string }> = {
+  event: { label: "Event", icon: "📅", dateLabel: "Event day" },
+  campaign: { label: "Client campaign", icon: "📣", dateLabel: "Launch" },
+  course: { label: "Course launch", icon: "🎓", dateLabel: "Launch" },
+};
+
 export type Event = {
   id: string;
+  kind: InitiativeKind;
   name: string;
   date: string; // YYYY-MM-DD
   venue: string;
@@ -176,7 +204,7 @@ export type TemplateTask = {
   approverRoles?: Role[];
 };
 
-export type Template = { id: string; name: string; tasks: TemplateTask[] };
+export type Template = { id: string; name: string; kind: InitiativeKind; description: string; tasks: TemplateTask[] };
 
 export type ActivityEntry = {
   id: string;

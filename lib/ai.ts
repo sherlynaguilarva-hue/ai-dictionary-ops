@@ -10,7 +10,7 @@ const NUMBER_WORDS: Record<string, number> = {
 };
 
 function quantityOf(line: string): number {
-  const digit = line.match(/\b(\d{1,2})\s*(?:x\s*)?(?:event\s+|social\s+media\s+|facebook\s+|sponsored\s+)?(posters?|mentions?|posts?|shout-?outs?|booths?|slots?|banners?)/i);
+  const digit = line.match(/\b(\d{1,2})\s*(?:x\s*)?(?:event\s+|social\s+media\s+|facebook\s+|sponsored\s+|short-form\s+|short\s+|branded\s+)?(posters?|mentions?|posts?|shout-?outs?|booths?|slots?|banners?|videos?|reels?|graphics?|carousels?|stories)/i);
   if (digit) return Number(digit[1]);
   const word = line.match(/\b(one|two|three|four|five|six|seven|eight|nine|ten)\b/i);
   if (word) return NUMBER_WORDS[word[1].toLowerCase()];
@@ -19,7 +19,11 @@ function quantityOf(line: string): number {
 
 function kindOf(line: string): DeliverableKind | null {
   const l = line.toLowerCase();
-  if (/(social|facebook|instagram|tiktok|shout-?out|mention|post\b|posts\b)/.test(l)) return "social";
+  if (/\b(report|analytics|insights)\b/.test(l)) return "report";
+  if (/\b(ads?|ad campaign|boost(ed|ing)?|paid media|meta ads)\b/.test(l)) return "ads";
+  if (/\b(videos?|reels?|tiktoks?)\b/.test(l)) return "video";
+  if (/(shout-?out|mention)/.test(l)) return "social";
+  if (/\b(posts?|graphics?|carousels?|content|captions?|stories)\b/.test(l)) return "content";
   if (/\blogo\b/.test(l)) return "logo";
   if (/\bbooth\b/.test(l)) return "booth";
   if (/(speaking|talk|keynote|stage time)/.test(l)) return "speaking";
@@ -33,7 +37,8 @@ function clean(line: string): string {
 /** Pull sponsor/partner deliverables out of contract text. */
 export function extractDeliverables(text: string): Deliverable[] {
   const lines = text.split(/\r?\n/);
-  const hasBenefitsHeading = lines.some((l) => /(benefit|deliverable|inclusion)s?\s*:?\s*$/i.test(l.trim()));
+  const SECTION = /(benefit|deliverable|inclusion|service|scope)/i;
+  const hasBenefitsHeading = lines.some((l) => /(benefit|deliverable|inclusion|service|scope of work)s?\s*:?\s*$/i.test(l.trim()));
 
   let inSection = !hasBenefitsHeading;
   const out: Deliverable[] = [];
@@ -42,7 +47,7 @@ export function extractDeliverables(text: string): Deliverable[] {
     if (!line) continue;
     const isHeading = /:\s*$/.test(line) && !/^\s*(\d+[.)]|[-*•])/.test(line);
     if (isHeading && hasBenefitsHeading) {
-      inSection = /(benefit|deliverable|inclusion)/i.test(line);
+      inSection = SECTION.test(line);
       continue;
     }
     if (!inSection || !/^\s*(\d+[.)]|[-*•])/.test(line)) continue;

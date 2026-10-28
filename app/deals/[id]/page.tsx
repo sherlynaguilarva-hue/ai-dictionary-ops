@@ -8,8 +8,8 @@ import { extractDeliverables } from "@/lib/ai";
 import { winDeal } from "@/lib/engine";
 import { fmt, today } from "@/lib/dates";
 import { uid } from "@/lib/id";
-import { SAMPLE_CONTRACT } from "@/lib/seed";
-import { STAGES, STAGE_LABEL, type Deliverable, type DeliverableKind, type Stage } from "@/lib/types";
+import { SAMPLE_CLIENT_CONTRACT, SAMPLE_CONTRACT } from "@/lib/seed";
+import { INITIATIVE, STAGES, STAGE_LABEL, type Deliverable, type DeliverableKind, type Stage } from "@/lib/types";
 import { AgentBadge, Avatar, Entry, RoleChip, StatusChip } from "@/components/ui";
 
 const KIND_LABEL: Record<DeliverableKind, string> = {
@@ -17,6 +17,10 @@ const KIND_LABEL: Record<DeliverableKind, string> = {
   social: "Social mention",
   booth: "Booth",
   speaking: "Speaking slot",
+  content: "Posts / content",
+  video: "Video",
+  ads: "Ad campaign",
+  report: "Report",
   other: "Other",
 };
 
@@ -108,13 +112,13 @@ export default function DealPage() {
       <div className="card p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <div className="label">{deal.pipeline === "sponsor" ? "Sponsor deal" : "Partner deal"}</div>
+            <div className="label">{deal.pipeline === "client" ? "Client deal" : deal.pipeline === "sponsor" ? "Sponsor deal" : "Partner deal"}</div>
             <h1 className="h-entry mt-1 text-2xl">{company.name}</h1>
             <div className="text-sm text-ink/60">
               {deal.title} · ₱{deal.value.toLocaleString()}
             </div>
             <div className="mt-2 text-sm">
-              📅 {event.name} — {fmt(event.date, { month: "long", day: "numeric", year: "numeric" })}
+              {INITIATIVE[event.kind].icon} {event.name} — {INITIATIVE[event.kind].dateLabel.toLowerCase()} {fmt(event.date, { month: "long", day: "numeric", year: "numeric" })}
             </div>
           </div>
           <div className="flex items-center gap-2 text-sm">
@@ -159,7 +163,10 @@ export default function DealPage() {
               <button className="btn-primary" disabled={!pasteText.trim()} onClick={() => attach(`${company.name} contract.txt`, pasteText)}>
                 Attach pasted text
               </button>
-              <button className="btn-outline" onClick={() => attach(`${company.name.replace(/\W+/g, "")}_Sponsorship.pdf`, SAMPLE_CONTRACT.replaceAll("Brew & Co. Coffee", company.name))}>
+              <button className="btn-outline" onClick={() => attach(
+                    `${company.name.replace(/\W+/g, "")}_${deal.pipeline === "client" ? "Services" : "Sponsorship"}.pdf`,
+                    deal.pipeline === "client" ? SAMPLE_CLIENT_CONTRACT.replaceAll("Kape Kultura Café", company.name) : SAMPLE_CONTRACT.replaceAll("Brew & Co. Coffee", company.name),
+                  )}>
                 Use sample contract
               </button>
             </div>

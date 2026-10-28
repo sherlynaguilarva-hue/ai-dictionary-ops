@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useCurrentUser, useStore } from "@/lib/store";
 import { isOverdue, projectHealth } from "@/lib/engine";
 import { daysBetween, fmt, relative, today } from "@/lib/dates";
-import { AgentBadge, Entry, HealthChip } from "@/components/ui";
+import { AgentBadge, Entry, HealthChip, KindChip } from "@/components/ui";
+import { INITIATIVE } from "@/lib/types";
 
 export default function Dashboard() {
   const { state } = useStore();
@@ -19,7 +20,7 @@ export default function Dashboard() {
 
   const stats = [
     { label: "Open pipeline", value: `₱${(pipelineValue / 1000).toFixed(0)}k`, sub: `${openDeals.length} deals` },
-    { label: "Active projects", value: state.projects.length, sub: `${state.events.length} events planned` },
+    { label: "Active projects", value: state.projects.length, sub: `${state.events.filter((e) => !e.projectId).length} more in pipeline` },
     { label: "My tasks due", value: dueToday.length, sub: `${mine.length} open` },
     { label: "Overdue (team)", value: overdue.length, sub: overdue.length ? "needs attention" : "all clear" },
   ];
@@ -48,12 +49,14 @@ export default function Dashboard() {
       <div className="grid gap-6 lg:grid-cols-5">
         <section className="space-y-3 lg:col-span-3">
           <div className="flex items-center justify-between">
-            <h2 className="h-entry text-lg">Events</h2>
+            <h2 className="h-entry text-lg">Coming up</h2>
             <Link href="/pipeline" className="text-sm text-cyan-600 hover:underline">
               Pipeline →
             </Link>
           </div>
           {[...state.events]
+            .filter((e) => e.projectId || state.deals.some((d) => d.eventId === e.id && ["proposal", "negotiation"].includes(d.stage)))
+            .filter((e) => daysBetween(t, e.date) >= -7)
             .sort((a, b) => a.date.localeCompare(b.date))
             .map((e) => {
               const p = state.projects.find((x) => x.id === e.projectId);
@@ -66,16 +69,17 @@ export default function Dashboard() {
                 <div key={e.id} className="card p-4">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
-                      <div className="font-medium">{e.name}</div>
+                      <KindChip kind={e.kind} />
+                      <div className="mt-1.5 font-medium">{e.name}</div>
                       <div className="text-xs text-ink/50">
-                        {fmt(e.date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })} · {e.venue} · T-{daysBetween(t, e.date)} days
+                        {INITIATIVE[e.kind].dateLabel} {fmt(e.date, { weekday: "short", month: "short", day: "numeric" })} · {e.venue} · {daysBetween(t, e.date) >= 0 ? `T-${daysBetween(t, e.date)} days` : `${-daysBetween(t, e.date)} days in`}
                       </div>
                     </div>
-                    {h ? <HealthChip health={h.health} /> : <span className="chip bg-ink-50 text-ink/60">No project yet</span>}
+                    {h ? <HealthChip health={h.health} /> : <span className="chip bg-ink-50 text-ink/60">Deal not won yet</span>}
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink/60">
-                    <span>{sponsors} won</span>
-                    <span>{inPipe} in pipeline</span>
+                    {(sponsors > 0 || inPipe > 0) && <span>{sponsors} deal{sponsors === 1 ? "" : "s"} won</span>}
+                    {inPipe > 0 && <span>{inPipe} in pipeline</span>}
                     {p && (
                       <span>
                         {done}/{tasks.length} tasks done

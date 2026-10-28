@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useStore } from "@/lib/store";
-import { STAGES, STAGE_LABEL, type Pipeline } from "@/lib/types";
+import { INITIATIVE, PIPELINE_LABEL, STAGES, STAGE_LABEL, type Pipeline } from "@/lib/types";
 import { Avatar } from "@/components/ui";
 
 export default function PipelinePage() {
   const { state } = useStore();
-  const [pipeline, setPipeline] = useState<Pipeline>("sponsor");
+  const [pipeline, setPipeline] = useState<Pipeline>("client");
   const deals = state.deals.filter((d) => d.pipeline === pipeline);
 
   return (
@@ -19,9 +19,9 @@ export default function PipelinePage() {
           <p className="text-sm text-ink/60">Mark a deal Won and its contract turns into tasks automatically.</p>
         </div>
         <div className="inline-flex rounded-lg border border-ink-100 bg-white p-1">
-          {(["sponsor", "partner"] as const).map((p) => (
+          {(["client", "sponsor", "partner"] as const).map((p) => (
             <button key={p} onClick={() => setPipeline(p)} className={`rounded-md px-3 py-1.5 text-sm ${pipeline === p ? "bg-ink text-white" : "text-ink/60"}`}>
-              {p === "sponsor" ? "Sponsors" : "Partners"}
+              {PIPELINE_LABEL[p]}
             </button>
           ))}
         </div>
@@ -49,7 +49,9 @@ export default function PipelinePage() {
                       <Link key={d.id} href={`/deals/${d.id}`} className="card block p-3 transition hover:border-cyan-600">
                         <div className="text-sm font-medium">{c.name}</div>
                         <div className="text-xs text-ink/50">{d.title}</div>
-                        <div className="mt-2 truncate text-xs text-ink/60">📅 {e.name}</div>
+                        <div className="mt-2 truncate text-xs text-ink/60">
+                          {INITIATIVE[e.kind].icon} {e.name}
+                        </div>
                         <div className="mt-2 flex items-center justify-between">
                           <span className="text-sm font-semibold">₱{d.value.toLocaleString()}</span>
                           <span className="flex items-center gap-1.5">
