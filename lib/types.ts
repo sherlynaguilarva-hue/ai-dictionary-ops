@@ -167,6 +167,10 @@ export type Task = {
   subtasks: Subtask[];
   approval?: Approval;
   createdBy?: string;
+  /** YYYY-MM-DD the task was created; used by reminder rules. */
+  createdAt?: string;
+  /** Special reminder rule attached to this task. */
+  automation?: "logo-request";
 };
 
 /** Remark on a task. System entries record status changes and approvals. */
@@ -230,6 +234,40 @@ export type Subscriber = {
   createdAt: string;
 };
 
+/** One line of a person's evening check-in. */
+export type DailyUpdate = {
+  id: string;
+  userId: string;
+  date: string; // YYYY-MM-DD the update is for
+  taskId: string;
+  status: "done" | "in_progress" | "blocked";
+  percent?: number;
+  note?: string;
+  at: string;
+};
+
+/** A submitted evening check-in ("Today's entry"). */
+export type CheckIn = {
+  userId: string;
+  date: string;
+  submittedAt: string;
+  taskCount: number;
+};
+
+export type NotificationKind = "morning" | "checkin" | "nudge" | "no-update" | "due-soon" | "overdue" | "escalation" | "logo" | "approval" | "blocked";
+
+/** In-app reminder. Prototype: nothing is sent outside the app. */
+export type Notification = {
+  id: string;
+  userId: string;
+  kind: NotificationKind;
+  title: string;
+  body: string;
+  href?: string;
+  at: string;
+  read: boolean;
+};
+
 export type State = {
   version: number;
   currentUserId: string | null;
@@ -245,4 +283,11 @@ export type State = {
   subscribers: Subscriber[];
   templates: Template[];
   activity: ActivityEntry[];
+  dailyUpdates: DailyUpdate[];
+  checkins: CheckIn[];
+  notifications: Notification[];
+  /** Reminder rules that already fired (so each fires once). */
+  firedKeys: string[];
+  /** Demo clock: ISO time the app pretends it is, or null for real time. */
+  simulatedNow: string | null;
 };

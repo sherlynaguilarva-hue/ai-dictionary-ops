@@ -8,6 +8,7 @@ import { extractDeliverables } from "@/lib/ai";
 import { winDeal } from "@/lib/engine";
 import { fmt, today } from "@/lib/dates";
 import { uid } from "@/lib/id";
+import { nowISO } from "@/lib/clock";
 import { SAMPLE_CLIENT_CONTRACT, SAMPLE_CONTRACT } from "@/lib/seed";
 import { INITIATIVE, STAGES, STAGE_LABEL, type Deliverable, type DeliverableKind, type Stage } from "@/lib/types";
 import { AgentBadge, Avatar, Entry, RoleChip, StatusChip } from "@/components/ui";
@@ -86,7 +87,7 @@ export default function DealPage() {
       const k = s.contracts.find((c) => c.id === contract.id)!;
       k.deliverables = draft.filter((d) => d.description.trim());
       k.status = "confirmed";
-      s.activity.unshift({ id: uid("act"), at: new Date().toISOString(), agent: "Clerk", message: `${k.deliverables.length} deliverables confirmed on ${company.name}'s contract.`, href: `/deals/${id}` });
+      s.activity.unshift({ id: uid("act"), at: nowISO(), agent: "Clerk", message: `${k.deliverables.length} deliverables confirmed on ${company.name}'s contract.`, href: `/deals/${id}` });
     });
     setDraft(null);
   }

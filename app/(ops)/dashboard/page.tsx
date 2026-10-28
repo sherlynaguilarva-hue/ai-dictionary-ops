@@ -6,6 +6,9 @@ import { isOverdue, projectHealth } from "@/lib/engine";
 import { daysBetween, fmt, relative, today } from "@/lib/dates";
 import { AgentBadge, Entry, HealthChip, KindChip } from "@/components/ui";
 import { INITIATIVE } from "@/lib/types";
+import { checkInFor, noUpdateList, tasksNeedingUpdate } from "@/lib/automations";
+import { addDays } from "@/lib/dates";
+import { Avatar } from "@/components/ui";
 
 export default function Dashboard() {
   const { state } = useStore();
@@ -46,6 +49,8 @@ export default function Dashboard() {
           </div>
         ))}
       </div>
+
+      <NoUpdateCard />
 
       <div className="grid gap-6 lg:grid-cols-5">
         <section className="space-y-3 lg:col-span-3">
@@ -125,5 +130,40 @@ export default function Dashboard() {
         </section>
       </div>
     </div>
+  );
+}
+
+/** For Owner / Admin: who didn't check in yesterday, and today's progress. */
+function NoUpdateCard() {
+  const { state } = useStore();
+  const me = useCurrentUser()!;
+  if (!me.roles.includes("owner") && !me.roles.includes("admin")) return null;
+  const t = today();
+  const missed = noUpdateList(state, addDays(t, -1));
+  const due = state.users.filter((u) => tasksNeedingUpdate(state, u.id, t).length || checkInFor(state, u.id, t));
+  const done = due.filter((u) => checkInFor(state, u.id, t));
+  return (
+    <Link href="/check-in?tab=team" className={`card flex flex-wrap items-center gap-4 p-4 hover:border-cyan-600 ${missed.length ? "border-red-200" : ""}`}>
+      <div className="min-w-0 flex-1">
+        <div className="label">{missed.length ? "No update yesterday" : "Daily check-in"}</div>
+        {missed.length ? (
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            {missed.map((m) => (
+              <span key={m.user.id} className="chip gap-1.5 bg-red-50 py-0.5 pl-0.5 pr-2.5 text-red-800">
+                <Avatar user={m.user} size={20} /> {m.user.name.split(" ")[0]} · {m.tasks.length}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-1 text-sm text-emerald-800">Everyone with tasks updated yesterday ✓</div>
+        )}
+      </div>
+      <div className="text-right">
+        <div className="font-serif text-2xl font-semibold">
+          {done.length}/{due.length}
+        </div>
+        <div className="text-[11px] text-ink/50">checked in today</div>
+      </div>
+    </Link>
   );
 }

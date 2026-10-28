@@ -1,9 +1,10 @@
 import type { State, Template } from "./types";
+import { CHECKIN_HOUR } from "./automations";
 import { addDays, today } from "./dates";
 import { extractDeliverables } from "./ai";
 import { createInitiative, winDeal } from "./engine";
 
-export const STATE_VERSION = 4;
+export const STATE_VERSION = 5;
 
 /*
  * Draft templates — best guesses at the process, to be corrected with real
@@ -180,6 +181,11 @@ export function seed(): State {
     ],
     templates: [CLIENT_CAMPAIGN, COURSE_LAUNCH, SPONSORED_EVENT],
     activity: [],
+    dailyUpdates: [],
+    checkins: [],
+    notifications: [],
+    firedKeys: [],
+    simulatedNow: null,
   };
 
   // Running client retainer, won 4 weeks ago: earlier work done, one approval running late.
@@ -205,5 +211,49 @@ export function seed(): State {
     { id: "cmt_seed1", taskId: kickoff.id, userId: "u_sherlyn", kind: "comment", text: "@Mara let's also invite Little Readers' reading coach to this.", at: new Date(Date.now() - 3_600_000).toISOString() },
     { id: "cmt_seed2", taskId: kickoff.id, userId: "u_mara", kind: "comment", text: "Noted po! Sending the invite today.", at: new Date(Date.now() - 1_800_000).toISOString() },
   );
+
+  // So everyone has something to report in today's check-in.
+  for (const u of s.users) {
+    const open = s.tasks.filter((x) => x.assigneeId === u.id && x.status !== "done").sort((a, b) => a.due.localeCompare(b.due));
+    if (open.length && !open.some((x) => x.due <= t)) open[0].due = t;
+  }
+
+  // Paolo and Rina each had a task due yesterday that they never reported on.
+  for (const userId of ["u_paolo", "u_rina"]) {
+    const task = s.tasks.find((x) => x.assigneeId === userId && x.status !== "done" && x.due >= t);
+    if (task) task.due = addDays(t, -1);
+  }
+
+  // Check-in history: most of the team updated daily; Paolo and Rina skipped yesterday.
+  const history: Record<string, number> = { u_sherlyn: 6, u_mara: 9, u_jun: 4, u_bea: 12, u_paolo: 0, u_rina: 0, u_joy: 3 };
+  for (const [userId, days] of Object.entries(history))
+    for (let i = 1; i <= days; i++) {
+      const date = addDays(t, -i);
+      s.checkins.push({ userId, date, submittedAt: `${date}T${String(CHECKIN_HOUR - 1).padStart(2, "0")}:${String(10 + i * 3).padStart(2, "0")}:00`, taskCount: 1 + (i % 3) });
+    }
+  // Paolo and Rina were steady before yesterday.
+  for (const userId of ["u_paolo", "u_rina"])
+    for (let i = 2; i <= 5; i++) {
+      const date = addDays(t, -i);
+      s.checkins.push({ userId, date, submittedAt: `${date}T17:45:00`, taskCount: 2 });
+    }
+  return s;
+}
+
+/** Upgrade saved data from older prototype versions without losing it. */
+export function migrate(old: State): State {
+  const s = old as State & Partial<Pick<State, "dailyUpdates" | "checkins" | "notifications" | "firedKeys" | "simulatedNow">>;
+  if (s.version === 4) {
+    s.dailyUpdates ??= [];
+    s.checkins ??= [];
+    s.notifications ??= [];
+    s.firedKeys ??= [];
+    s.simulatedNow ??= null;
+    for (const task of s.tasks) {
+      task.createdAt ??= s.projects.find((p) => p.id === task.projectId)?.createdAt ?? today();
+      if (task.title.startsWith("Request logo")) task.automation = "logo-request";
+    }
+    s.version = 5;
+  }
   return s;
 }

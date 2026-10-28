@@ -1,4 +1,5 @@
 /** Dates are stored as local YYYY-MM-DD strings. */
+import { now } from "./clock";
 
 export function toISODate(d: Date): string {
   const y = d.getFullYear();
@@ -13,7 +14,7 @@ export function parseDate(s: string): Date {
 }
 
 export function today(): string {
-  return toISODate(new Date());
+  return toISODate(now());
 }
 
 export function addDays(s: string, n: number): string {

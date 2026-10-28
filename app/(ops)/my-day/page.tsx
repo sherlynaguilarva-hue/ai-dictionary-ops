@@ -7,6 +7,34 @@ import { TaskRow } from "@/components/TaskRow";
 import { NewTaskButton } from "@/components/NewTask";
 import Link from "next/link";
 import { AvatarStack } from "@/components/ui";
+import { CHECKIN_HOUR, checkInFor, hourLabel, tasksNeedingUpdate } from "@/lib/automations";
+import { now } from "@/lib/clock";
+
+/** Today's entry status: reminds the person until they submit. */
+function CheckInBanner() {
+  const { state } = useStore();
+  const user = useCurrentUser()!;
+  const t = today();
+  const done = checkInFor(state, user.id, t);
+  const n = tasksNeedingUpdate(state, user.id, t).length;
+  if (!done && !n) return null;
+  const late = now().getHours() >= CHECKIN_HOUR;
+  if (done)
+    return (
+      <div className="flex items-center gap-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">
+        <span className="text-lg">✓</span> Today&apos;s entry submitted. Nice work.
+      </div>
+    );
+  return (
+    <Link href="/check-in" className={`flex flex-wrap items-center gap-3 rounded-xl p-3 text-sm ${late ? "bg-red-50 text-red-900 ring-1 ring-red-200" : "bg-amber-50 text-amber-900"}`}>
+      <span className="text-lg">📝</span>
+      <span className="flex-1">
+        <b>{late ? "Today's entry is due now." : `Today's entry is due at ${hourLabel(CHECKIN_HOUR)}.`}</b> {n} task{n > 1 ? "s" : ""} to update — under a minute.
+      </span>
+      <span className="btn-primary px-3 py-1.5 text-xs">Check in →</span>
+    </Link>
+  );
+}
 
 export default function MyDay() {
   const { state } = useStore();
@@ -31,10 +59,11 @@ export default function MyDay() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="h-entry text-2xl">My Day</h1>
-          <p className="text-sm text-ink/60">{fmt(t, { weekday: "long", month: "long", day: "numeric" })} · Evening check-in due 6:00 PM (coming in Step 3)</p>
+          <p className="text-sm text-ink/60">{fmt(t, { weekday: "long", month: "long", day: "numeric" })} · Evening check-in due {hourLabel(CHECKIN_HOUR)}</p>
         </div>
         <NewTaskButton />
       </div>
+      <CheckInBanner />
       {toApprove.length > 0 && (
         <section>
           <h2 className="label mb-2 text-violet-700">Waiting for my approval · {toApprove.length}</h2>

@@ -3,13 +3,14 @@
  * due dates → contract deliverables → tasks + social post slots.
  */
 import type { ActivityEntry, Comment, Deliverable, Health, Role, SocialPost, State, Subtask, Task } from "./types";
-import { addDays, daysBetween } from "./dates";
+import { addDays, daysBetween, today } from "./dates";
 import { uid } from "./id";
+import { nowISO } from "./clock";
 
 const OPEN: Task["status"][] = ["todo", "in_progress", "blocked", "in_review"];
 
 function log(state: State, entry: Omit<ActivityEntry, "id" | "at">) {
-  state.activity.unshift({ id: uid("act"), at: new Date().toISOString(), ...entry });
+  state.activity.unshift({ id: uid("act"), at: nowISO(), ...entry });
 }
 
 function maxDate(a: string, b: string) {
@@ -46,6 +47,7 @@ function newTask(state: State, input: NewTask): Task {
     subtasks: (checklistItems ?? []).map((title) => ({ id: uid("sub"), title, assigneeIds: [assigneeId], done: false })),
     dependsOn: [],
     priority: "normal",
+    createdAt: today(),
     ...t,
     assigneeId,
   };
@@ -66,6 +68,7 @@ export function createProjectFromTemplate(state: State, eventId: string, on: str
   state.projects.push({ id: projectId, eventId, name: event.name, createdAt: on });
   event.projectId = projectId;
 
+  const firstNew = state.tasks.length;
   const idByKey: Record<string, string> = {};
   for (const tt of template.tasks) {
     const task = newTask(state, {
@@ -86,6 +89,7 @@ export function createProjectFromTemplate(state: State, eventId: string, on: str
     const task = state.tasks.find((t) => t.id === idByKey[tt.key])!;
     task.dependsOn = (tt.dependsOn ?? []).map((k) => idByKey[k]).filter(Boolean);
   }
+  for (const t of state.tasks.slice(firstNew)) t.createdAt = on;
   log(state, {
     agent: "Clerk",
     message: `Created project “${event.name}” from template “${template.name}” with ${template.tasks.length} tasks.`,
@@ -98,6 +102,7 @@ function deliverableTasks(state: State, projectId: string, eventDate: string, co
   const company = state.companies.find((c) => c.id === companyId)!;
   const projectTasks = () => state.tasks.filter((t) => t.projectId === projectId);
   const created: string[] = [];
+  const firstNew = state.tasks.length;
 
   const logos = dels.filter((d) => d.kind === "logo");
   if (logos.length) {
@@ -109,6 +114,7 @@ function deliverableTasks(state: State, projectId: string, eventDate: string, co
       source: "contract",
       companyId,
       priority: "high",
+      automation: "logo-request",
       requiredAttachment: `${company.name} logo (high-res)`,
       checklistItems: [`Email upload link to ${company.contactName}`, "Receive logo (PNG/SVG) + brand guide"],
     });
@@ -255,6 +261,7 @@ function deliverableTasks(state: State, projectId: string, eventDate: string, co
       newTask(state, { projectId, title: `${company.name}: ${d.description}`, role: "admin", due: maxDate(on, addDays(eventDate, -14)), source: "contract", deliverableId: d.id, companyId }).title,
     );
   }
+  for (const t of state.tasks.slice(firstNew)) t.createdAt = on;
   return created;
 }
 
@@ -302,8 +309,11 @@ export function projectHealth(state: State, projectId: string, on: string): { he
   if (blocked.length) reasons.push(`${blocked.length} blocked`);
   const missingAttach = tasks.filter((t) => t.requiredAttachment && t.attachments.length === 0 && t.status !== "done" && daysBetween(on, t.due) <= 0);
   if (missingAttach.length) reasons.push(`${missingAttach.length} missing required file${missingAttach.length > 1 ? "s" : ""}`);
-  const highOverdue = overdue.filter((t) => t.priority === "high");
-  const health: Health = highOverdue.length || overdue.length > 2 ? "red" : reasons.length ? "yellow" : "green";
+  const logoLate = tasks.filter((t) => t.automation === "logo-request" && !t.attachments.length && t.status !== "done" && t.due < on);
+  if (logoLate.length) reasons.push(`sponsor logo${logoLate.length > 1 ? "s" : ""} not received`);
+  // Red when slipping badly: a high-priority task 3+ days late, or 3+ tasks late.
+  const badlyLate = overdue.filter((t) => t.priority === "high" && daysBetween(t.due, on) >= 3);
+  const health: Health = badlyLate.length || overdue.length > 2 ? "red" : reasons.length ? "yellow" : "green";
   return { health, reasons };
 }
 
@@ -318,7 +328,7 @@ export function isApproved(t: Task): boolean {
 }
 
 export function addComment(state: State, taskId: string, c: Omit<Comment, "id" | "at" | "taskId">) {
-  state.comments.push({ id: uid("cmt"), at: new Date().toISOString(), taskId, ...c });
+  state.comments.push({ id: uid("cmt"), at: nowISO(), taskId, ...c });
 }
 
 const STATUS_WORD: Record<Task["status"], string> = {
@@ -368,7 +378,7 @@ export function decide(state: State, taskId: string, userId: string, decision: "
   const t = state.tasks.find((x) => x.id === taskId)!;
   if (!t.approval?.approverIds.includes(userId)) throw new Error("You're not an approver on this task.");
   t.approval.decisions = t.approval.decisions.filter((d) => d.userId !== userId);
-  t.approval.decisions.push({ userId, decision, note, at: new Date().toISOString() });
+  t.approval.decisions.push({ userId, decision, note, at: nowISO() });
   const who = nameOf(state, userId);
   if (decision === "changes") {
     t.status = "in_progress";

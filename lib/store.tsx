@@ -2,7 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { State } from "./types";
-import { STATE_VERSION, seed } from "./seed";
+import { STATE_VERSION, migrate, seed } from "./seed";
+import { setSimulatedNow } from "./clock";
 
 const KEY = "aidict-state";
 
@@ -19,7 +20,7 @@ function load(): State {
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as State;
+      const parsed = migrate(JSON.parse(raw) as State);
       if (parsed.version === STATE_VERSION) return parsed;
     }
   } catch {}
@@ -30,6 +31,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<State | null>(null);
   const ref = useRef<State | null>(null);
   ref.current = state;
+  // Every date/time helper reads the demo clock from here.
+  setSimulatedNow(state?.simulatedNow ?? null);
 
   useEffect(() => setState(load()), []);
   useEffect(() => {
@@ -50,7 +53,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const reset = useCallback(() => {
     const fresh = seed();
-    setState((prev) => ({ ...fresh, currentUserId: prev?.currentUserId ?? null }));
+    const next = { ...fresh, currentUserId: ref.current?.currentUserId ?? null };
+    ref.current = next;
+    setSimulatedNow(null);
+    setState(next);
   }, []);
 
   // Public pages render immediately; app pages wait behind <StoreGate>.

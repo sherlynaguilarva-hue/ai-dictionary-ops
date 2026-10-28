@@ -6,6 +6,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import { addComment, canComplete, completeTask, decide, isOverdue, newSubtask, reopenTask, setStatus } from "@/lib/engine";
 import { fmt, relative, tMinus, today } from "@/lib/dates";
+import { now } from "@/lib/clock";
 import { ROLE_LABEL, type Role, type State, type Subtask, type Task, type User } from "@/lib/types";
 import { AgentBadge, Avatar, AvatarStack, RoleChip, SourceChip, StatusChip } from "@/components/ui";
 import { UserPicker } from "@/components/NewTask";
@@ -33,7 +34,7 @@ function RichText({ text, users }: { text: string; users: User[] }) {
 }
 
 function timeAgo(iso: string) {
-  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  const mins = Math.round((now().getTime() - new Date(iso).getTime()) / 60000);
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;
   if (mins < 60 * 24) return `${Math.round(mins / 60)}h ago`;
