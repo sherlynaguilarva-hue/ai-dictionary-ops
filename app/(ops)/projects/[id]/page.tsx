@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { useStore } from "@/lib/store";
 import { projectHealth } from "@/lib/engine";
 import { daysBetween, fmt, tMinus, today } from "@/lib/dates";
@@ -10,9 +10,20 @@ import { INITIATIVE, PIPELINE_LABEL, ROLE_LABEL, type Role } from "@/lib/types";
 import { HealthChip, KindChip } from "@/components/ui";
 import { TaskRow } from "@/components/TaskRow";
 import { NewTaskButton } from "@/components/NewTask";
+import { Timeline } from "@/components/Timeline";
 
-export default function ProjectPage() {
+export default function ProjectPageWrapper() {
+  return (
+    <Suspense>
+      <ProjectPage />
+    </Suspense>
+  );
+}
+
+function ProjectPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const view = useSearchParams().get("view") === "timeline" ? "timeline" : "tasks";
   const { state } = useStore();
   const [role, setRole] = useState<Role | "all">("all");
   const [hideDone, setHideDone] = useState(false);
@@ -80,6 +91,18 @@ export default function ProjectPage() {
         )}
       </div>
 
+      <div className="inline-flex rounded-lg border border-ink-100 bg-white p-1">
+        {(["tasks", "timeline"] as const).map((v) => (
+          <button key={v} onClick={() => router.replace(v === "timeline" ? `/projects/${id}?view=timeline` : `/projects/${id}`)} className={`rounded-md px-3 py-1.5 text-sm ${view === v ? "bg-ink text-white" : "text-ink/60"}`}>
+            {v === "tasks" ? "☰ Tasks" : "▬ Timeline (Gantt)"}
+          </button>
+        ))}
+      </div>
+
+      {view === "timeline" ? (
+        <Timeline projectId={id} />
+      ) : (
+      <>
       <div className="flex flex-wrap items-center gap-2">
         <select className="input w-auto" value={role} onChange={(e) => setRole(e.target.value as Role | "all")}>
           <option value="all">All roles</option>
@@ -106,7 +129,12 @@ export default function ProjectPage() {
 
       {posts.length > 0 && (
         <section>
-          <h2 className="h-entry mb-2 text-lg">Social post slots</h2>
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="h-entry text-lg">Social posts</h2>
+            <Link href="/social" className="text-sm text-cyan-600 hover:underline">
+              Social calendar →
+            </Link>
+          </div>
           <ul className="card divide-y divide-ink-100">
             {posts.map((p) => (
               <li key={p.id} className="flex items-center gap-3 px-3 py-2.5 text-sm">
@@ -120,6 +148,8 @@ export default function ProjectPage() {
             ))}
           </ul>
         </section>
+      )}
+      </>
       )}
     </div>
   );

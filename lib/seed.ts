@@ -2,10 +2,12 @@ import type { State, Template } from "./types";
 import { CHECKIN_HOUR } from "./automations";
 import { addDays, today } from "./dates";
 import { extractDeliverables } from "./ai";
-import { createInitiative, winDeal } from "./engine";
+import { createInitiative, createProjectFromTemplate, winDeal } from "./engine";
+import { DEFAULT_PLATFORMS, draftCaption } from "./social";
+import { uid } from "./id";
 import { dmId, postMessage } from "./chat";
 
-export const STATE_VERSION = 6;
+export const STATE_VERSION = 7;
 
 /*
  * Draft templates — best guesses at the process, to be corrected with real
@@ -242,7 +244,47 @@ export function seed(): State {
       s.checkins.push({ userId, date, submittedAt: `${date}T17:45:00`, taskCount: 2 });
     }
   seedChat(s);
+  seedSocial(s);
   return s;
+}
+
+/**
+ * Step 5 demo data: a Cebu workshop 14 days out with nothing scheduled for
+ * next week (social gap), a late poster that will push the final poster
+ * (Gantt forecast), and a few posts across projects.
+ */
+function seedSocial(s: State) {
+  const t = today();
+  for (const p of s.posts) p.platforms ??= [...DEFAULT_PLATFORMS];
+  if (!s.events.some((e) => e.id === "e_cebu")) {
+    s.events.push({ id: "e_cebu", kind: "event", name: "Word Wise Teachers' Workshop — Cebu", date: addDays(t, 14), venue: "Ayala Center Cebu", templateId: "tpl_workshop" });
+    const projectId = createProjectFromTemplate(s, "e_cebu", addDays(t, -32));
+    for (const task of s.tasks.filter((x) => x.projectId === projectId)) {
+      if (task.due >= t) continue;
+      if (task.templateKey === "run-of-show") continue; // left late on purpose
+      task.status = "done";
+      if (task.requiredAttachment) task.attachments.push(`${task.requiredAttachment}.pdf`);
+      for (const sub of task.subtasks) sub.done = true;
+    }
+    const poster = s.tasks.find((x) => x.projectId === projectId && x.templateKey === "poster")!;
+    poster.status = "in_progress";
+    poster.due = addDays(t, -2);
+    const add = (offset: number, status: "published" | "draft", i: number) => {
+      const post = { id: uid("pst"), projectId, title: status === "draft" ? "Countdown teaser" : `Workshop promo ${i}`, date: addDays(t, offset), status, platforms: [...DEFAULT_PLATFORMS] } as State["posts"][number];
+      post.caption = draftCaption(s, post, i);
+      s.posts.push(post);
+    };
+    add(-20, "published", 1);
+    add(-13, "published", 2);
+    add(-6, "published", 3);
+  }
+  // The running client retainer: its first two contract posts are written and scheduled.
+  const ngiti = s.events.find((e) => e.id === "e_ngiti")?.projectId;
+  for (const [i, post] of s.posts.filter((p) => p.projectId === ngiti).slice(0, 2).entries()) {
+    post.caption ??= draftCaption(s, post, i);
+    post.status = "scheduled";
+    post.approvedBy = "u_sherlyn";
+  }
 }
 
 /** A few chat messages, including task requests Scribe will pick up. */
@@ -285,6 +327,10 @@ export function migrate(old: State): State {
     v6.chatReads ??= {};
     seedChat(v6 as State);
     s.version = 6;
+  }
+  if (s.version === 6) {
+    seedSocial(s);
+    s.version = 7;
   }
   return s;
 }

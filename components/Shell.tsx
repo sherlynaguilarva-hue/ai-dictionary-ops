@@ -14,10 +14,12 @@ import { DemoClock } from "./DemoClock";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: "◧" },
+  { href: "/brief", label: "Risk Brief", icon: "🛡" },
   { href: "/my-day", label: "My Day", icon: "☀" },
   { href: "/check-in", label: "Check-in", icon: "✎" },
   { href: "/chat", label: "Chat", icon: "💬" },
   { href: "/calendar", label: "Calendar", icon: "▦" },
+  { href: "/social", label: "Social", icon: "📣" },
   { href: "/projects", label: "Projects", icon: "▤" },
   { href: "/pipeline", label: "Pipeline", icon: "⇶" },
   { href: "/subscribers", label: "Subscribers", icon: "✉" },

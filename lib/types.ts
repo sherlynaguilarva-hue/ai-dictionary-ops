@@ -188,6 +188,20 @@ export type Comment = {
   at: string;
 };
 
+export type Platform = "facebook" | "instagram" | "tiktok" | "linkedin";
+
+export const PLATFORM: Record<Platform, { label: string; short: string; color: string }> = {
+  facebook: { label: "Facebook", short: "FB", color: "#1877F2" },
+  instagram: { label: "Instagram", short: "IG", color: "#C13584" },
+  tiktok: { label: "TikTok", short: "TT", color: "#111111" },
+  linkedin: { label: "LinkedIn", short: "in", color: "#0A66C2" },
+};
+
+/**
+ * Social post. "slot" = planned placeholder, "draft" = written, waiting for
+ * approval, "scheduled" = approved and queued, "published" = live
+ * (prototype: simulated — nothing is posted).
+ */
 export type SocialPost = {
   id: string;
   projectId: string;
@@ -196,6 +210,10 @@ export type SocialPost = {
   status: "slot" | "draft" | "scheduled" | "published";
   companyId?: string;
   deliverableId?: string;
+  caption?: string;
+  platforms?: Platform[];
+  /** Who approved it for scheduling. */
+  approvedBy?: string;
 };
 
 export type TemplateTask = {
@@ -258,7 +276,7 @@ export type CheckIn = {
   taskCount: number;
 };
 
-export type NotificationKind = "morning" | "checkin" | "nudge" | "no-update" | "due-soon" | "overdue" | "escalation" | "logo" | "approval" | "blocked" | "mention" | "captured";
+export type NotificationKind = "morning" | "checkin" | "nudge" | "no-update" | "due-soon" | "overdue" | "escalation" | "logo" | "approval" | "blocked" | "mention" | "captured" | "social-gap" | "risk-brief";
 
 /**
  * Chat channels are derived, not stored: "general", "prj:<projectId>",

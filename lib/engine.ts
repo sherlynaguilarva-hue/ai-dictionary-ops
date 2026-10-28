@@ -6,6 +6,9 @@ import type { ActivityEntry, Comment, Deliverable, Health, NotificationKind, Rol
 import { addDays, daysBetween, today } from "./dates";
 import { uid } from "./id";
 import { nowISO } from "./clock";
+import { forecastProject } from "./schedule";
+import { coverageGaps } from "./social";
+import { noUpdateList } from "./updates";
 
 const OPEN: Task["status"][] = ["todo", "in_progress", "blocked", "in_review"];
 
@@ -311,9 +314,20 @@ export function projectHealth(state: State, projectId: string, on: string): { he
   if (missingAttach.length) reasons.push(`${missingAttach.length} missing required file${missingAttach.length > 1 ? "s" : ""}`);
   const logoLate = tasks.filter((t) => t.automation === "logo-request" && !t.attachments.length && t.status !== "done" && t.due < on);
   if (logoLate.length) reasons.push(`sponsor logo${logoLate.length > 1 ? "s" : ""} not received`);
-  // Red when slipping badly: a high-priority task 3+ days late, or 3+ tasks late.
+  // Social coverage below the rule for the next 7 days.
+  if (coverageGaps(state, on).some((g) => g.projectId === projectId)) reasons.push("social posts missing next week");
+  // People on this project who didn't send yesterday's check-in.
+  const silent = noUpdateList(state, addDays(on, -1)).filter((m) => m.tasks.some((t) => t.projectId === projectId));
+  if (silent.length) reasons.push(`${silent.length} ${silent.length > 1 ? "people" : "person"} not updating`);
+  // Forecast: will open work push past the event / launch date? Is a zero-slack task still not started?
+  const forecast = forecastProject(state, projectId, on);
+  const eventRisk = tasks.some((t) => forecast[t.id]?.eventRisk);
+  if (eventRisk) reasons.unshift("forecast: will miss the launch / event date");
+  const stalled = tasks.filter((t) => t.status === "todo" && forecast[t.id]?.critical && daysBetween(on, t.due) <= 2);
+  if (stalled.length) reasons.push(`${stalled.length} critical task${stalled.length > 1 ? "s" : ""} not started`);
+  // Red when slipping badly: event at risk, a high-priority task 3+ days late, or 3+ tasks late.
   const badlyLate = overdue.filter((t) => t.priority === "high" && daysBetween(t.due, on) >= 3);
-  const health: Health = badlyLate.length || overdue.length > 2 ? "red" : reasons.length ? "yellow" : "green";
+  const health: Health = eventRisk || badlyLate.length || overdue.length > 2 ? "red" : reasons.length ? "yellow" : "green";
   return { health, reasons };
 }
 

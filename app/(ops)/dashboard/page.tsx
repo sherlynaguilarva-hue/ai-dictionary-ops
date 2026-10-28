@@ -7,6 +7,7 @@ import { daysBetween, fmt, relative, today } from "@/lib/dates";
 import { AgentBadge, Entry, HealthChip, KindChip } from "@/components/ui";
 import { INITIATIVE } from "@/lib/types";
 import { checkInFor, noUpdateList, tasksNeedingUpdate } from "@/lib/automations";
+import { buildBrief } from "@/lib/risk";
 import { addDays } from "@/lib/dates";
 import { Avatar } from "@/components/ui";
 
@@ -50,6 +51,7 @@ export default function Dashboard() {
         ))}
       </div>
 
+      <BriefCard />
       <NoUpdateCard />
 
       <div className="grid gap-6 lg:grid-cols-5">
@@ -164,6 +166,26 @@ function NoUpdateCard() {
         </div>
         <div className="text-[11px] text-ink/50">checked in today</div>
       </div>
+    </Link>
+  );
+}
+
+/** For Owner / Admin: one-line Risk Brief with a link to the full page. */
+function BriefCard() {
+  const { state } = useStore();
+  const me = useCurrentUser()!;
+  if (!me.roles.includes("owner") && !me.roles.includes("admin")) return null;
+  const brief = buildBrief(state, today());
+  const red = brief.projects.filter((p) => p.health === "red").length;
+  return (
+    <Link href="/brief" className={`card flex flex-wrap items-center gap-3 p-4 hover:border-cyan-600 ${red ? "border-red-200" : ""}`}>
+      <span className="text-2xl">🛡</span>
+      <div className="min-w-0 flex-1">
+        <div className="label">Morning Risk Brief</div>
+        <div className="text-sm font-medium">{brief.headline}</div>
+        {brief.actions[0] && <div className="truncate text-xs text-ink/55">Next: {brief.actions[0].text}</div>}
+      </div>
+      <span className="btn-primary px-3 py-1.5 text-xs">Open brief →</span>
     </Link>
   );
 }

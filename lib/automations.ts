@@ -9,6 +9,11 @@ import type { CheckIn, DailyUpdate, State, Task, User } from "./types";
 import { addDays, daysBetween, fmt, toISODate } from "./dates";
 import { addComment, completeTask, notify, setStatus } from "./engine";
 import { autoCaptureSuggestions } from "./chat";
+import { coverageGaps } from "./social";
+import { buildBrief } from "./risk";
+import { checkInFor, noUpdateList, tasksNeedingUpdate } from "./updates";
+
+export { checkInFor, noUpdateList, streak, tasksNeedingUpdate } from "./updates";
 import { nowISO } from "./clock";
 import { uid } from "./id";
 
@@ -21,37 +26,6 @@ export function hourLabel(h: number) {
 }
 
 const isLead = (u: User) => u.roles.includes("owner") || u.roles.includes("admin");
-
-/** Tasks a person must report on for a given day. */
-export function tasksNeedingUpdate(state: State, userId: string, date: string): Task[] {
-  return state.tasks
-    .filter((t) => t.assigneeId === userId && t.status !== "done" && t.status !== "in_review")
-    .filter((t) => t.due <= date || t.status === "in_progress" || t.status === "blocked")
-    .sort((a, b) => a.due.localeCompare(b.due));
-}
-
-export function checkInFor(state: State, userId: string, date: string): CheckIn | undefined {
-  return state.checkins.find((c) => c.userId === userId && c.date === date);
-}
-
-/** People who had something to report on `date` but didn't submit. */
-export function noUpdateList(state: State, date: string) {
-  return state.users
-    .filter((u) => !checkInFor(state, u.id, date))
-    .map((u) => ({ user: u, tasks: tasksNeedingUpdate(state, u.id, date) }))
-    .filter((x) => x.tasks.length > 0);
-}
-
-/** Consecutive days with a submitted check-in, counting back from `date` (today counts once submitted). */
-export function streak(state: State, userId: string, date: string): number {
-  let d = checkInFor(state, userId, date) ? date : addDays(date, -1);
-  let n = 0;
-  while (checkInFor(state, userId, d)) {
-    n++;
-    d = addDays(d, -1);
-  }
-  return n;
-}
 
 export type EntryInput = { taskId: string; status: DailyUpdate["status"]; percent?: number; note?: string };
 
@@ -157,6 +131,26 @@ export function runAutomations(state: State, at: Date): number {
       if (hour >= NUDGE_HOUR) notify(state, u.id, "nudge", `nudge:${u.id}:${date}`, "📝 Still missing today's entry", "Your PM will see “No update” tomorrow morning.", "/check-in");
     }
   }
+
+  if (hour >= MORNING_HOUR) {
+    // Social coverage gaps → Social team + Owner ("Herald").
+    for (const g of coverageGaps(state, date)) {
+      const name = state.projects.find((p) => p.id === g.projectId)?.name ?? "A project";
+      for (const u of state.users.filter((u) => u.roles.includes("social") || u.roles.includes("owner")))
+        notify(state, u.id, "social-gap", `gap:${g.projectId}:${g.from}:${u.id}`, `📣 Social gap: ${name}`, g.message, "/social");
+      if (!state.firedKeys.includes(`gaplog:${g.projectId}:${g.from}`)) {
+        state.firedKeys.push(`gaplog:${g.projectId}:${g.from}`);
+        state.activity.unshift({ id: uid("act"), at: nowISO(), agent: "Herald", message: `Coverage gap: ${g.message}`, href: "/social" });
+      }
+    }
+    // Morning Risk Brief → Owner and Admin ("Sentinel").
+    const brief = buildBrief(state, date);
+    for (const l of leads)
+      notify(state, l.id, "risk-brief", `brief:${l.id}:${date}`, "🛡 Morning Risk Brief", brief.headline, "/brief");
+  }
+
+  // Simulated publishing: approved posts "go live" on their date (nothing is actually posted).
+  for (const p of state.posts) if (p.status === "scheduled" && (p.date < date || (p.date === date && hour >= 9))) p.status = "published";
 
   // Chat suggestions nobody acted on become tasks automatically.
   autoCaptureSuggestions(state, at);
