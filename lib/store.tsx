@@ -53,14 +53,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setState((prev) => ({ ...fresh, currentUserId: prev?.currentUserId ?? null }));
   }, []);
 
-  if (!state) return <div className="p-8 text-sm text-ink/50">Loading…</div>;
-  return <Ctx.Provider value={{ state, act, reset }}>{children}</Ctx.Provider>;
+  // Public pages render immediately; app pages wait behind <StoreGate>.
+  return <Ctx.Provider value={state ? { state, act, reset } : null}>{children}</Ctx.Provider>;
+}
+
+/** Renders children only once saved state has loaded. */
+export function StoreGate({ children }: { children: React.ReactNode }) {
+  const s = useContext(Ctx);
+  if (!s) return <div className="p-8 text-sm text-ink/50">Loading…</div>;
+  return <>{children}</>;
 }
 
 export function useStore() {
   const s = useContext(Ctx);
-  if (!s) throw new Error("useStore outside StoreProvider");
+  if (!s) throw new Error("useStore outside a loaded StoreProvider");
   return s;
+}
+
+/** For public pages: null until state has loaded. */
+export function useOptionalStore() {
+  return useContext(Ctx);
 }
 
 export function useCurrentUser() {

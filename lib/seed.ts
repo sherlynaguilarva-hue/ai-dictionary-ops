@@ -3,7 +3,7 @@ import { addDays, today } from "./dates";
 import { extractDeliverables } from "./ai";
 import { createInitiative, winDeal } from "./engine";
 
-export const STATE_VERSION = 3;
+export const STATE_VERSION = 4;
 
 /*
  * Draft templates — best guesses at the process, to be corrected with real
@@ -125,13 +125,13 @@ export function seed(): State {
     version: STATE_VERSION,
     currentUserId: null,
     users: [
-      { id: "u_sherlyn", name: "Sherlyn Aguilar", roles: ["owner"], color: "#1B2A4A" },
-      { id: "u_mara", name: "Mara Santos", roles: ["admin"], color: "#7C3AED" },
-      { id: "u_jun", name: "Jun Reyes", roles: ["sales"], color: "#0891B2" },
-      { id: "u_bea", name: "Bea Cruz", roles: ["creative"], color: "#DB2777" },
-      { id: "u_paolo", name: "Paolo Lim", roles: ["social"], color: "#C98A12" },
-      { id: "u_rina", name: "Rina Dela Paz", roles: ["eventops"], color: "#059669" },
-      { id: "u_joy", name: "Joy Navarro", roles: ["instructor"], color: "#EA580C" },
+      { id: "u_sherlyn", name: "Sherlyn Aguilar", email: "sherlyn@aidictionary.example", roles: ["owner"], color: "#1B2A4A" },
+      { id: "u_mara", name: "Mara Santos", email: "mara@aidictionary.example", roles: ["admin"], color: "#7C3AED" },
+      { id: "u_jun", name: "Jun Reyes", email: "jun@aidictionary.example", roles: ["sales"], color: "#0891B2" },
+      { id: "u_bea", name: "Bea Cruz", email: "bea@aidictionary.example", roles: ["creative"], color: "#DB2777" },
+      { id: "u_paolo", name: "Paolo Lim", email: "paolo@aidictionary.example", roles: ["social"], color: "#C98A12" },
+      { id: "u_rina", name: "Rina Dela Paz", email: "rina@aidictionary.example", roles: ["eventops"], color: "#059669" },
+      { id: "u_joy", name: "Joy Navarro", email: "joy@aidictionary.example", roles: ["instructor"], color: "#EA580C" },
     ],
     companies: [
       { id: "c_kape", name: "Kape Kultura Café", contactName: "Migs Bautista", contactEmail: "migs@kapekultura.example" },
@@ -173,6 +173,11 @@ export function seed(): State {
     tasks: [],
     comments: [],
     posts: [],
+    subscribers: [
+      { id: "sub_1", name: "Ella Manalo", email: "ella.m@example.com", level: 4, tier: "learner", parentConsent: false, newsletterConsent: true, source: "website", createdAt: addDays(t, -6) + "T09:12:00.000Z" },
+      { id: "sub_2", name: "Rhea Castillo (for Mika, 6)", email: "rhea.c@example.com", level: 1, tier: "scholar", parentConsent: true, newsletterConsent: true, source: "event", createdAt: addDays(t, -3) + "T02:40:00.000Z" },
+      { id: "sub_3", name: "Paolo Garcia", email: "pgarcia@example.com", level: 3, tier: "reader", parentConsent: false, newsletterConsent: true, source: "website", createdAt: addDays(t, -1) + "T11:05:00.000Z" },
+    ],
     templates: [CLIENT_CAMPAIGN, COURSE_LAUNCH, SPONSORED_EVENT],
     activity: [],
   };

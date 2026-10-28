@@ -10,7 +10,7 @@ export const ROLE_LABEL: Record<Role, string> = {
   instructor: "Instructor",
 };
 
-export type User = { id: string; name: string; roles: Role[]; color: string };
+export type User = { id: string; name: string; email: string; roles: Role[]; color: string };
 
 export type Company = {
   id: string;
@@ -209,9 +209,25 @@ export type Template = { id: string; name: string; kind: InitiativeKind; descrip
 export type ActivityEntry = {
   id: string;
   at: string; // ISO timestamp
-  agent?: "Clerk" | "Scout" | "Herald" | "Sentinel" | "Coach" | "Scribe";
+  agent?: "Clerk" | "Scout" | "Herald" | "Sentinel" | "Coach" | "Scribe" | "Tutor";
   message: string;
   href?: string;
+};
+
+export type Tier = "reader" | "learner" | "scholar";
+export type LevelId = 1 | 2 | 3 | 4 | 5;
+
+export type Subscriber = {
+  id: string;
+  name: string;
+  email: string;
+  level: LevelId;
+  tier: Tier;
+  /** Parent/guardian consent, required for Levels 1–2 (minors). */
+  parentConsent: boolean;
+  newsletterConsent: boolean;
+  source: "website" | "event" | "import";
+  createdAt: string;
 };
 
 export type State = {
@@ -226,6 +242,7 @@ export type State = {
   tasks: Task[];
   comments: Comment[];
   posts: SocialPost[];
+  subscribers: Subscriber[];
   templates: Template[];
   activity: ActivityEntry[];
 };

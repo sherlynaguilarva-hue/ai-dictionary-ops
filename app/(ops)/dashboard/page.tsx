@@ -21,6 +21,7 @@ export default function Dashboard() {
   const stats = [
     { label: "Open pipeline", value: `₱${(pipelineValue / 1000).toFixed(0)}k`, sub: `${openDeals.length} deals` },
     { label: "Active projects", value: state.projects.length, sub: `${state.events.filter((e) => !e.projectId).length} more in pipeline` },
+    { label: "Subscribers", value: state.subscribers.length, sub: `${state.subscribers.filter((x) => x.tier !== "reader").length} paid plans` },
     { label: "My tasks due", value: dueToday.length, sub: `${mine.length} open` },
     { label: "Overdue (team)", value: overdue.length, sub: overdue.length ? "needs attention" : "all clear" },
   ];
@@ -36,7 +37,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         {stats.map((s) => (
           <div key={s.label} className="card p-4">
             <div className="label">{s.label}</div>

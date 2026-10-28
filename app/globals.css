@@ -17,3 +17,27 @@ body { @apply bg-paper text-ink font-sans antialiased; }
   .label { @apply text-xs font-semibold uppercase tracking-wide text-ink/50; }
   .input { @apply w-full rounded-lg border border-ink-100 bg-white px-3 py-2 text-sm outline-none focus:border-cyan-600 focus:ring-2 focus:ring-cyan/30; }
 }
+
+/* Public site: printed-dictionary details */
+@layer components {
+  .smallcaps { font-variant: small-caps; letter-spacing: 0.08em; }
+  .paper-grain {
+    background-color: #FAF8F3;
+    background-image:
+      radial-gradient(rgba(27, 42, 74, 0.035) 1px, transparent 1px),
+      radial-gradient(rgba(27, 42, 74, 0.025) 1px, transparent 1px);
+    background-size: 22px 22px, 31px 31px;
+    background-position: 0 0, 11px 17px;
+  }
+  .rule-double { border-top: 3px double rgba(27, 42, 74, 0.35); }
+  .drop-cap::first-letter {
+    float: left;
+    font-family: Fraunces, Georgia, serif;
+    font-weight: 700;
+    font-size: 3.4em;
+    line-height: 0.85;
+    padding: 0.08em 0.1em 0 0;
+    color: #1B2A4A;
+  }
+}
+html { scroll-behavior: smooth; }
