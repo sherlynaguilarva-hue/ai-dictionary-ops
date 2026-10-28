@@ -9,6 +9,7 @@ import { daysBetween, fmt, tMinus, today } from "@/lib/dates";
 import { ROLE_LABEL, type Role } from "@/lib/types";
 import { HealthChip } from "@/components/ui";
 import { TaskRow } from "@/components/TaskRow";
+import { NewTaskButton } from "@/components/NewTask";
 
 export default function ProjectPage() {
   const { id } = useParams<{ id: string }>();
@@ -89,7 +90,8 @@ export default function ProjectPage() {
         <label className="flex items-center gap-2 text-sm text-ink/60">
           <input type="checkbox" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} /> Hide done
         </label>
-        <span className="ml-auto text-xs text-ink/40">Gantt and calendar views arrive in Steps 3 and 5</span>
+        <span className="flex-1" />
+        <NewTaskButton projectId={id} />
       </div>
 
       <section className="card overflow-hidden">

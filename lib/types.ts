@@ -95,13 +95,35 @@ export type Project = {
   createdAt: string;
 };
 
-export type TaskStatus = "todo" | "in_progress" | "blocked" | "done";
+export type TaskStatus = "todo" | "in_progress" | "blocked" | "in_review" | "done";
 export type TaskSource = "template" | "contract" | "chat" | "meeting" | "manual";
+
+export type Subtask = {
+  id: string;
+  title: string;
+  assigneeIds: string[];
+  due?: string;
+  done: boolean;
+};
+
+export type ApprovalDecision = {
+  userId: string;
+  decision: "approved" | "changes";
+  note?: string;
+  at: string;
+};
+
+export type Approval = {
+  approverIds: string[];
+  /** Decisions for the current review round; cleared on resubmit. */
+  decisions: ApprovalDecision[];
+};
 
 export type Task = {
   id: string;
   projectId: string;
   title: string;
+  description: string;
   role: Role;
   assigneeId: string;
   due: string; // YYYY-MM-DD
@@ -114,7 +136,20 @@ export type Task = {
   companyId?: string;
   requiredAttachment?: string;
   attachments: string[];
-  checklist: { text: string; done: boolean }[];
+  subtasks: Subtask[];
+  approval?: Approval;
+  createdBy?: string;
+};
+
+/** Remark on a task. System entries record status changes and approvals. */
+export type Comment = {
+  id: string;
+  taskId: string;
+  userId?: string;
+  agent?: ActivityEntry["agent"];
+  kind: "comment" | "system";
+  text: string;
+  at: string;
 };
 
 export type SocialPost = {
@@ -137,6 +172,8 @@ export type TemplateTask = {
   requiredAttachment?: string;
   checklist?: string[];
   priority?: Task["priority"];
+  /** Roles whose sign-off is needed before the task is Done. */
+  approverRoles?: Role[];
 };
 
 export type Template = { id: string; name: string; tasks: TemplateTask[] };
@@ -159,6 +196,7 @@ export type State = {
   events: Event[];
   projects: Project[];
   tasks: Task[];
+  comments: Comment[];
   posts: SocialPost[];
   templates: Template[];
   activity: ActivityEntry[];

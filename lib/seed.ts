@@ -3,7 +3,7 @@ import { addDays, today } from "./dates";
 import { extractDeliverables } from "./ai";
 import { winDeal } from "./engine";
 
-export const STATE_VERSION = 1;
+export const STATE_VERSION = 2;
 
 /** Draft template — to be corrected with a real event example. */
 const SPONSORED_WORKSHOP: Template = {
@@ -11,12 +11,12 @@ const SPONSORED_WORKSHOP: Template = {
   name: "Sponsored Workshop",
   tasks: [
     { key: "kickoff", title: "Kickoff meeting & confirm scope", role: "admin", offset: -45, priority: "high", checklist: ["Agenda & speakers", "Budget", "Sponsor list"] },
-    { key: "venue", title: "Confirm venue booking", role: "eventops", offset: -40, priority: "high", dependsOn: ["kickoff"], requiredAttachment: "Signed venue confirmation" },
+    { key: "venue", title: "Confirm venue booking", role: "eventops", offset: -40, priority: "high", dependsOn: ["kickoff"], requiredAttachment: "Signed venue confirmation", approverRoles: ["admin"] },
     { key: "poster", title: "Design master event poster", role: "creative", offset: -28, dependsOn: ["kickoff"] },
-    { key: "social-plan", title: "Social campaign plan (T-6 weeks → day-of)", role: "social", offset: -42, dependsOn: ["kickoff"] },
+    { key: "social-plan", title: "Social campaign plan (T-6 weeks → day-of)", role: "social", offset: -42, dependsOn: ["kickoff"], approverRoles: ["owner"] },
     { key: "registration", title: "Open registration page", role: "social", offset: -25, dependsOn: ["venue"] },
     { key: "run-of-show", title: "Draft run-of-show", role: "eventops", offset: -21, dependsOn: ["venue"] },
-    { key: "final-poster", title: "Finalize poster with ALL sponsor logos", role: "creative", offset: -14, priority: "high", dependsOn: ["poster"], requiredAttachment: "Final poster (all sponsor logos)" },
+    { key: "final-poster", title: "Finalize poster with ALL sponsor logos", role: "creative", offset: -14, priority: "high", dependsOn: ["poster"], requiredAttachment: "Final poster (all sponsor logos)", approverRoles: ["owner"] },
     { key: "suppliers", title: "Confirm suppliers (AV, catering)", role: "eventops", offset: -10, dependsOn: ["venue"] },
     { key: "print", title: "Print posters & banners", role: "eventops", offset: -10, dependsOn: ["final-poster"] },
     { key: "sponsor-call", title: "Final check-in call with each sponsor", role: "sales", offset: -7 },
@@ -88,11 +88,18 @@ export function seed(): State {
     ],
     projects: [],
     tasks: [],
+    comments: [],
     posts: [],
     templates: [SPONSORED_WORKSHOP],
     activity: [],
   };
   // Kids Word Fest already exists as a running project.
   winDeal(s, "d_little", t);
+  const kickoff = s.tasks.find((x) => x.projectId === s.events[1].projectId && x.templateKey === "kickoff")!;
+  kickoff.description = "Align on theme, speakers and the sponsor shortlist. Bring last year's attendance numbers.";
+  s.comments.push(
+    { id: "cmt_seed1", taskId: kickoff.id, userId: "u_sherlyn", kind: "comment", text: "@Mara let's also invite Little Readers' reading coach to this.", at: new Date(Date.now() - 3_600_000).toISOString() },
+    { id: "cmt_seed2", taskId: kickoff.id, userId: "u_mara", kind: "comment", text: "Noted po! Sending the invite today.", at: new Date(Date.now() - 1_800_000).toISOString() },
+  );
   return s;
 }

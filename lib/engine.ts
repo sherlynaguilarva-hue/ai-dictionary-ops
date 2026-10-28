@@ -2,11 +2,11 @@
  * Trigger engine: Deal Won → project from template → tasks with roles and
  * due dates → contract deliverables → tasks + social post slots.
  */
-import type { ActivityEntry, Deliverable, Health, Role, SocialPost, State, Task } from "./types";
+import type { ActivityEntry, Comment, Deliverable, Health, Role, SocialPost, State, Subtask, Task } from "./types";
 import { addDays, daysBetween } from "./dates";
 import { uid } from "./id";
 
-const OPEN: Task["status"][] = ["todo", "in_progress", "blocked"];
+const OPEN: Task["status"][] = ["todo", "in_progress", "blocked", "in_review"];
 
 function log(state: State, entry: Omit<ActivityEntry, "id" | "at">) {
   state.activity.unshift({ id: uid("act"), at: new Date().toISOString(), ...entry });
@@ -24,17 +24,35 @@ export function pickAssignee(state: State, role: Role): string {
   return [...pool].sort((a, b) => load(a.id) - load(b.id))[0].id;
 }
 
-function newTask(state: State, t: Omit<Task, "id" | "assigneeId" | "status" | "attachments" | "checklist" | "dependsOn" | "priority"> & Partial<Task>): Task {
+/** First person in each role, skipping the assignee (no self-approval). */
+export function approversFor(state: State, roles: Role[], assigneeId: string): string[] {
+  const ids = roles
+    .map((r) => state.users.find((u) => u.roles.includes(r) && u.id !== assigneeId)?.id)
+    .filter((x): x is string => Boolean(x));
+  return Array.from(new Set(ids));
+}
+
+type NewTask = Omit<Task, "id" | "assigneeId" | "status" | "attachments" | "subtasks" | "dependsOn" | "priority" | "description"> &
+  Partial<Task> & { checklistItems?: string[]; approverRoles?: Role[] };
+
+function newTask(state: State, input: NewTask): Task {
+  const { checklistItems, approverRoles, ...t } = input;
+  const assigneeId = t.assigneeId ?? pickAssignee(state, t.role);
   const task: Task = {
     id: uid("tsk"),
-    assigneeId: pickAssignee(state, t.role),
     status: "todo",
+    description: "",
     attachments: [],
-    checklist: [],
+    subtasks: (checklistItems ?? []).map((title) => ({ id: uid("sub"), title, assigneeIds: [assigneeId], done: false })),
     dependsOn: [],
     priority: "normal",
     ...t,
+    assigneeId,
   };
+  if (approverRoles?.length && !task.approval) {
+    const approverIds = approversFor(state, approverRoles, assigneeId);
+    if (approverIds.length) task.approval = { approverIds, decisions: [] };
+  }
   state.tasks.push(task);
   return task;
 }
@@ -59,7 +77,8 @@ export function createProjectFromTemplate(state: State, eventId: string, on: str
       templateKey: tt.key,
       requiredAttachment: tt.requiredAttachment,
       priority: tt.priority ?? "normal",
-      checklist: (tt.checklist ?? []).map((text) => ({ text, done: false })),
+      checklistItems: tt.checklist,
+      approverRoles: tt.approverRoles,
     });
     idByKey[tt.key] = task.id;
   }
@@ -91,10 +110,7 @@ function deliverableTasks(state: State, projectId: string, eventDate: string, co
       companyId,
       priority: "high",
       requiredAttachment: `${company.name} logo (high-res)`,
-      checklist: [
-        { text: `Email upload link to ${company.contactName}`, done: false },
-        { text: "Receive logo (PNG/SVG) + brand guide", done: false },
-      ],
+      checklistItems: [`Email upload link to ${company.contactName}`, "Receive logo (PNG/SVG) + brand guide"],
     });
     created.push(request.title);
     const finalPoster = projectTasks().find((t) => t.templateKey === "final-poster");
@@ -109,6 +125,7 @@ function deliverableTasks(state: State, projectId: string, eventDate: string, co
         companyId,
         dependsOn: [request.id],
         requiredAttachment: "Proof with logo placed",
+        approverRoles: ["sales"],
       });
       created.push(place.title);
       if (finalPoster) finalPoster.dependsOn.push(place.id);
@@ -133,7 +150,8 @@ function deliverableTasks(state: State, projectId: string, eventDate: string, co
       source: "contract",
       deliverableId: d.id,
       companyId,
-      checklist: slots.map((s) => ({ text: s.title, done: false })),
+      checklistItems: slots.map((s) => s.title),
+      approverRoles: ["owner"],
     });
     created.push(t.title);
   }
@@ -199,4 +217,96 @@ export function projectHealth(state: State, projectId: string, on: string): { he
 /** A task can't be closed until its required attachment is present. */
 export function canComplete(t: Task): boolean {
   return !t.requiredAttachment || t.attachments.length > 0;
+}
+
+export function isApproved(t: Task): boolean {
+  if (!t.approval?.approverIds.length) return true;
+  return t.approval.approverIds.every((id) => t.approval!.decisions.some((d) => d.userId === id && d.decision === "approved"));
+}
+
+export function addComment(state: State, taskId: string, c: Omit<Comment, "id" | "at" | "taskId">) {
+  state.comments.push({ id: uid("cmt"), at: new Date().toISOString(), taskId, ...c });
+}
+
+const STATUS_WORD: Record<Task["status"], string> = {
+  todo: "To do",
+  in_progress: "In progress",
+  blocked: "Blocked",
+  in_review: "In review",
+  done: "Done",
+};
+
+function nameOf(state: State, userId: string) {
+  return state.users.find((u) => u.id === userId)?.name ?? "Someone";
+}
+
+/** Set a non-terminal status. Done goes through completeTask so approvals apply. */
+export function setStatus(state: State, taskId: string, status: Exclude<Task["status"], "done" | "in_review">, userId: string, note?: string) {
+  const t = state.tasks.find((x) => x.id === taskId)!;
+  if (t.status === status) return;
+  t.status = status;
+  addComment(state, taskId, { kind: "system", userId, text: `${nameOf(state, userId)} set status to ${STATUS_WORD[status]}${note ? ` — ${note}` : ""}` });
+}
+
+/** Mark done, or send for approval when sign-off is required. */
+export function completeTask(state: State, taskId: string, userId: string): "done" | "in_review" {
+  const t = state.tasks.find((x) => x.id === taskId)!;
+  if (!canComplete(t)) throw new Error(`Upload “${t.requiredAttachment}” first.`);
+  if (t.approval?.approverIds.length && !isApproved(t)) {
+    t.approval.decisions = [];
+    t.status = "in_review";
+    const names = t.approval.approverIds.map((id) => nameOf(state, id)).join(", ");
+    addComment(state, taskId, { kind: "system", userId, text: `${nameOf(state, userId)} submitted for approval → ${names}` });
+    return "in_review";
+  }
+  t.status = "done";
+  addComment(state, taskId, { kind: "system", userId, text: `${nameOf(state, userId)} marked this Done` });
+  return "done";
+}
+
+export function reopenTask(state: State, taskId: string, userId: string) {
+  const t = state.tasks.find((x) => x.id === taskId)!;
+  t.status = "in_progress";
+  if (t.approval) t.approval.decisions = [];
+  addComment(state, taskId, { kind: "system", userId, text: `${nameOf(state, userId)} reopened this task` });
+}
+
+export function decide(state: State, taskId: string, userId: string, decision: "approved" | "changes", note?: string) {
+  const t = state.tasks.find((x) => x.id === taskId)!;
+  if (!t.approval?.approverIds.includes(userId)) throw new Error("You're not an approver on this task.");
+  t.approval.decisions = t.approval.decisions.filter((d) => d.userId !== userId);
+  t.approval.decisions.push({ userId, decision, note, at: new Date().toISOString() });
+  const who = nameOf(state, userId);
+  if (decision === "changes") {
+    t.status = "in_progress";
+    addComment(state, taskId, { kind: "system", userId, text: `${who} requested changes${note ? `: “${note}”` : ""}` });
+    return;
+  }
+  addComment(state, taskId, { kind: "system", userId, text: `${who} approved${note ? `: “${note}”` : ""}` });
+  if (isApproved(t)) {
+    t.status = "done";
+    addComment(state, taskId, { kind: "system", text: "All approvals in — task is Done ✓" });
+  }
+}
+
+export function createTask(
+  state: State,
+  input: { projectId: string; title: string; role: Role; assigneeId?: string; due: string; priority: Task["priority"]; description?: string; approverIds?: string[]; requiredAttachment?: string },
+  userId: string,
+): Task {
+  const { approverIds, ...rest } = input;
+  const task = newTask(state, {
+    ...rest,
+    description: rest.description ?? "",
+    requiredAttachment: rest.requiredAttachment || undefined,
+    source: "manual",
+    createdBy: userId,
+    approval: approverIds?.length ? { approverIds, decisions: [] } : undefined,
+  });
+  addComment(state, task.id, { kind: "system", userId, text: `${nameOf(state, userId)} created this task` });
+  return task;
+}
+
+export function newSubtask(title: string, assigneeIds: string[]): Subtask {
+  return { id: uid("sub"), title, assigneeIds, done: false };
 }

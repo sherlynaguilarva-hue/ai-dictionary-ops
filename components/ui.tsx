@@ -50,6 +50,7 @@ const STATUS: Record<Task["status"], { label: string; cls: string }> = {
   todo: { label: "To do", cls: "bg-ink-50 text-ink/70" },
   in_progress: { label: "In progress", cls: "bg-cyan-100 text-cyan-900" },
   blocked: { label: "Blocked", cls: "bg-red-100 text-red-800" },
+  in_review: { label: "In review", cls: "bg-violet-100 text-violet-800" },
   done: { label: "Done", cls: "bg-emerald-100 text-emerald-800" },
 };
 
@@ -62,6 +63,7 @@ export function SourceChip({ source }: { source: Task["source"] }) {
   if (source === "template") return <span className="chip bg-ink-50 text-ink/60">template</span>;
   if (source === "contract") return <span className="chip bg-gold/20 text-gold-600">from contract</span>;
   if (source === "chat") return <span className="chip bg-cyan/20 text-cyan-600">auto-captured</span>;
+  if (source === "manual") return <span className="chip bg-ink-50 text-ink/60">added by hand</span>;
   return <span className="chip bg-ink-50 text-ink/60">{source}</span>;
 }
 
@@ -80,6 +82,20 @@ export function AgentBadge({ name }: { name: string }) {
     <span className="chip gap-1 bg-ink text-cyan">
       <span aria-hidden>✦</span>
       {name}
+    </span>
+  );
+}
+
+/** Overlapping avatars for multi-assignee subtasks. */
+export function AvatarStack({ users, size = 22 }: { users: (User | undefined)[]; size?: number }) {
+  const list = users.filter(Boolean) as User[];
+  return (
+    <span className="inline-flex -space-x-1.5">
+      {list.map((u) => (
+        <span key={u.id} className="rounded-full ring-2 ring-white">
+          <Avatar user={u} size={size} />
+        </span>
+      ))}
     </span>
   );
 }
