@@ -34,7 +34,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // Every date/time helper reads the demo clock from here.
   setSimulatedNow(state?.simulatedNow ?? null);
 
-  useEffect(() => setState(load()), []);
+  useEffect(() => {
+    setState(load());
+  }, []);
   useEffect(() => {
     if (!state) return;
     try {

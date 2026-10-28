@@ -3,8 +3,9 @@ import { CHECKIN_HOUR } from "./automations";
 import { addDays, today } from "./dates";
 import { extractDeliverables } from "./ai";
 import { createInitiative, winDeal } from "./engine";
+import { dmId, postMessage } from "./chat";
 
-export const STATE_VERSION = 5;
+export const STATE_VERSION = 6;
 
 /*
  * Draft templates — best guesses at the process, to be corrected with real
@@ -186,6 +187,9 @@ export function seed(): State {
     notifications: [],
     firedKeys: [],
     simulatedNow: null,
+    messages: [],
+    suggestions: [],
+    chatReads: {},
   };
 
   // Running client retainer, won 4 weeks ago: earlier work done, one approval running late.
@@ -237,7 +241,26 @@ export function seed(): State {
       const date = addDays(t, -i);
       s.checkins.push({ userId, date, submittedAt: `${date}T17:45:00`, taskCount: 2 });
     }
+  seedChat(s);
   return s;
+}
+
+/** A few chat messages, including task requests Scribe will pick up. */
+function seedChat(s: State) {
+  const ago = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
+  const kids = `prj:${s.events.find((e) => e.id === "e_kids")!.projectId}`;
+  const ngiti = `prj:${s.events.find((e) => e.id === "e_ngiti")!.projectId}`;
+  postMessage(s, "general", "u_sherlyn", "Good morning team! Big week — Kape Kultura kickoff and the Bitsy course outline. 💪", ago(6));
+  postMessage(s, "general", "u_mara", "Noted po! Check-in tonight ha 😊", ago(5.8));
+  // Older than 4 hours with no action → will be auto-captured on first load.
+  postMessage(s, kids, "u_mara", "@Rina pakitawagan yung SM Skydome sa Lunes para sa ocular", ago(5));
+  postMessage(s, kids, "u_rina", "Sige po, noted!", ago(4.9));
+  // Fresh suggestions waiting for someone to click.
+  postMessage(s, ngiti, "u_jun", "Paolo, paki-post na yung teaser mamaya", ago(1));
+  postMessage(s, ngiti, "u_paolo", "Copy! Hinihintay ko lang final caption ni Dra. Liza.", ago(0.8));
+  postMessage(s, dmId("u_sherlyn", "u_bea"), "u_sherlyn", "Bea, pakiayos yung certificate design bago Friday", ago(0.5));
+  // Seeded messages count as read for their authors only.
+  s.notifications = s.notifications.filter((n) => n.kind !== "mention");
 }
 
 /** Upgrade saved data from older prototype versions without losing it. */
@@ -254,6 +277,14 @@ export function migrate(old: State): State {
       if (task.title.startsWith("Request logo")) task.automation = "logo-request";
     }
     s.version = 5;
+  }
+  if (s.version === 5) {
+    const v6 = s as State & Partial<Pick<State, "messages" | "suggestions" | "chatReads">>;
+    v6.messages ??= [];
+    v6.suggestions ??= [];
+    v6.chatReads ??= {};
+    seedChat(v6 as State);
+    s.version = 6;
   }
   return s;
 }

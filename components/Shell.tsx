@@ -8,6 +8,7 @@ import { ROLE_LABEL } from "@/lib/types";
 import { now } from "@/lib/clock";
 import { today } from "@/lib/dates";
 import { CHECKIN_HOUR, checkInFor, runAutomations, tasksNeedingUpdate } from "@/lib/automations";
+import { channelsFor, unreadCount } from "@/lib/chat";
 import { Avatar } from "./ui";
 import { DemoClock } from "./DemoClock";
 
@@ -15,12 +16,13 @@ const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: "◧" },
   { href: "/my-day", label: "My Day", icon: "☀" },
   { href: "/check-in", label: "Check-in", icon: "✎" },
+  { href: "/chat", label: "Chat", icon: "💬" },
   { href: "/calendar", label: "Calendar", icon: "▦" },
   { href: "/projects", label: "Projects", icon: "▤" },
   { href: "/pipeline", label: "Pipeline", icon: "⇶" },
   { href: "/subscribers", label: "Subscribers", icon: "✉" },
 ];
-const MOBILE_TABS = ["/my-day", "/check-in", "/calendar", "/projects"];
+const MOBILE_TABS = ["/my-day", "/chat", "/check-in", "/calendar"];
 
 export function Logo({ href = "/dashboard" }: { href?: string }) {
   return (
@@ -86,8 +88,12 @@ function SignedIn({ children, path, onSignedOut }: { children: React.ReactNode; 
   const user = useCurrentUser()!;
   const [menu, setMenu] = useState(false);
   const dot = useCheckInDot();
+  const { state } = useStore();
+  const chatUnread = channelsFor(state, user.id).some((c) => unreadCount(state, user.id, c.id) > 0);
   useAutomations();
-  useEffect(() => setMenu(false), [path]);
+  useEffect(() => {
+    setMenu(false);
+  }, [path]);
 
   const signOut = () => {
     act((s) => void (s.currentUserId = null));
@@ -95,7 +101,11 @@ function SignedIn({ children, path, onSignedOut }: { children: React.ReactNode; 
   };
   const active = (href: string) => path.startsWith(href);
   const Dot = ({ href }: { href: string }) =>
-    href === "/check-in" && dot ? <span className={`h-2 w-2 rounded-full ${dot === "red" ? "bg-red-600" : "bg-amber-400"}`} /> : null;
+    href === "/check-in" && dot ? (
+      <span className={`h-2 w-2 rounded-full ${dot === "red" ? "bg-red-600" : "bg-amber-400"}`} />
+    ) : href === "/chat" && chatUnread ? (
+      <span className="h-2 w-2 rounded-full bg-cyan-600" />
+    ) : null;
 
   return (
     <div className="min-h-screen md:flex">

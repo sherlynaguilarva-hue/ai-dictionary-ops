@@ -171,6 +171,10 @@ export type Task = {
   createdAt?: string;
   /** Special reminder rule attached to this task. */
   automation?: "logo-request";
+  /** Created automatically from chat because nobody acted on the suggestion. */
+  autoCaptured?: boolean;
+  /** Chat message this task came from. */
+  messageId?: string;
 };
 
 /** Remark on a task. System entries record status changes and approvals. */
@@ -254,7 +258,35 @@ export type CheckIn = {
   taskCount: number;
 };
 
-export type NotificationKind = "morning" | "checkin" | "nudge" | "no-update" | "due-soon" | "overdue" | "escalation" | "logo" | "approval" | "blocked";
+export type NotificationKind = "morning" | "checkin" | "nudge" | "no-update" | "due-soon" | "overdue" | "escalation" | "logo" | "approval" | "blocked" | "mention" | "captured";
+
+/**
+ * Chat channels are derived, not stored: "general", "prj:<projectId>",
+ * and "dm:<userA>:<userB>" (ids sorted).
+ */
+export type Message = {
+  id: string;
+  channelId: string;
+  userId: string;
+  text: string;
+  at: string;
+};
+
+/** A task Scribe spotted in a chat message, waiting for someone to act. */
+export type Suggestion = {
+  id: string;
+  messageId: string;
+  channelId: string;
+  title: string;
+  assigneeId?: string;
+  role: Role;
+  due: string;
+  projectId?: string;
+  status: "suggested" | "created" | "ignored" | "auto";
+  taskId?: string;
+  createdAt: string;
+  decidedBy?: string;
+};
 
 /** In-app reminder. Prototype: nothing is sent outside the app. */
 export type Notification = {
@@ -290,4 +322,8 @@ export type State = {
   firedKeys: string[];
   /** Demo clock: ISO time the app pretends it is, or null for real time. */
   simulatedNow: string | null;
+  messages: Message[];
+  suggestions: Suggestion[];
+  /** Last time each person opened each channel: userId → channelId → ISO. */
+  chatReads: Record<string, Record<string, string>>;
 };

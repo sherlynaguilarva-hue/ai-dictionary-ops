@@ -68,7 +68,7 @@ export function TaskRow({ task, showProject = false }: { task: Task; showProject
           </div>
         </Link>
         <div className="hidden items-center gap-2 sm:flex">
-          <SourceChip source={task.source} />
+          <SourceChip source={task.source} auto={task.autoCaptured} />
           <RoleChip role={task.role} />
         </div>
         <Avatar user={assignee} size={24} />

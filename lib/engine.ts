@@ -2,7 +2,7 @@
  * Trigger engine: Deal Won → project from template → tasks with roles and
  * due dates → contract deliverables → tasks + social post slots.
  */
-import type { ActivityEntry, Comment, Deliverable, Health, Role, SocialPost, State, Subtask, Task } from "./types";
+import type { ActivityEntry, Comment, Deliverable, Health, NotificationKind, Role, SocialPost, State, Subtask, Task, TaskSource } from "./types";
 import { addDays, daysBetween, today } from "./dates";
 import { uid } from "./id";
 import { nowISO } from "./clock";
@@ -394,7 +394,20 @@ export function decide(state: State, taskId: string, userId: string, decision: "
 
 export function createTask(
   state: State,
-  input: { projectId: string; title: string; role: Role; assigneeId?: string; due: string; priority: Task["priority"]; description?: string; approverIds?: string[]; requiredAttachment?: string },
+  input: {
+    projectId: string;
+    title: string;
+    role: Role;
+    assigneeId?: string;
+    due: string;
+    priority: Task["priority"];
+    description?: string;
+    approverIds?: string[];
+    requiredAttachment?: string;
+    source?: TaskSource;
+    messageId?: string;
+    autoCaptured?: boolean;
+  },
   userId: string,
 ): Task {
   const { approverIds, ...rest } = input;
@@ -402,12 +415,22 @@ export function createTask(
     ...rest,
     description: rest.description ?? "",
     requiredAttachment: rest.requiredAttachment || undefined,
-    source: "manual",
+    source: rest.source ?? "manual",
     createdBy: userId,
     approval: approverIds?.length ? { approverIds, decisions: [] } : undefined,
   });
   addComment(state, task.id, { kind: "system", userId, text: `${nameOf(state, userId)} created this task` });
   return task;
+}
+
+/** In-app notification. With a key, it fires only once. Prototype: never leaves the app. */
+export function notify(state: State, userId: string, kind: NotificationKind, key: string | null, title: string, body: string, href?: string) {
+  if (key) {
+    if (state.firedKeys.includes(key)) return false;
+    state.firedKeys.push(key);
+  }
+  state.notifications.unshift({ id: uid("ntf"), userId, kind, title, body, href, at: nowISO(), read: false });
+  return true;
 }
 
 export function newSubtask(title: string, assigneeIds: string[]): Subtask {

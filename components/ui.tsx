@@ -60,10 +60,10 @@ export function StatusChip({ status }: { status: Task["status"] }) {
   return <span className={`chip ${s.cls}`}>{s.label}</span>;
 }
 
-export function SourceChip({ source }: { source: Task["source"] }) {
+export function SourceChip({ source, auto }: { source: Task["source"]; auto?: boolean }) {
   if (source === "template") return <span className="chip bg-ink-50 text-ink/60">template</span>;
   if (source === "contract") return <span className="chip bg-gold/20 text-gold-600">from contract</span>;
-  if (source === "chat") return <span className="chip bg-cyan/20 text-cyan-600">auto-captured</span>;
+  if (source === "chat") return <span className="chip bg-cyan/20 text-cyan-600">{auto ? "✦ auto-captured" : "from chat"}</span>;
   if (source === "manual") return <span className="chip bg-ink-50 text-ink/60">added by hand</span>;
   return <span className="chip bg-ink-50 text-ink/60">{source}</span>;
 }
@@ -112,5 +112,23 @@ export function KindChip({ kind }: { kind: InitiativeKind }) {
     <span className={`chip gap-1 ${KIND_STYLE[kind]}`}>
       {INITIATIVE[kind].icon} {INITIATIVE[kind].label}
     </span>
+  );
+}
+
+/** Text with team @mentions highlighted. */
+export function RichText({ text, users }: { text: string; users: User[] }) {
+  const firstNames = users.map((u) => u.name.split(" ")[0].toLowerCase());
+  return (
+    <>
+      {text.split(/(@\w+)/g).map((part, i) =>
+        part.startsWith("@") && firstNames.includes(part.slice(1).toLowerCase()) ? (
+          <span key={i} className="rounded bg-cyan/20 px-1 font-medium text-cyan-600">
+            {part}
+          </span>
+        ) : (
+          <span key={i}>{part}</span>
+        ),
+      )}
+    </>
   );
 }

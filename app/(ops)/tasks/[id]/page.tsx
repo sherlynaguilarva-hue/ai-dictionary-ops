@@ -8,29 +8,11 @@ import { addComment, canComplete, completeTask, decide, isOverdue, newSubtask, r
 import { fmt, relative, tMinus, today } from "@/lib/dates";
 import { now } from "@/lib/clock";
 import { ROLE_LABEL, type Role, type State, type Subtask, type Task, type User } from "@/lib/types";
-import { AgentBadge, Avatar, AvatarStack, RoleChip, SourceChip, StatusChip } from "@/components/ui";
+import { AgentBadge, Avatar, AvatarStack, RichText, RoleChip, SourceChip, StatusChip } from "@/components/ui";
 import { UserPicker } from "@/components/NewTask";
 
 function nameOf(state: State, id: string) {
   return state.users.find((u) => u.id === id)?.name ?? "Someone";
-}
-
-/** Highlight @mentions of team members. */
-function RichText({ text, users }: { text: string; users: User[] }) {
-  const firstNames = users.map((u) => u.name.split(" ")[0].toLowerCase());
-  return (
-    <>
-      {text.split(/(@\w+)/g).map((part, i) =>
-        part.startsWith("@") && firstNames.includes(part.slice(1).toLowerCase()) ? (
-          <span key={i} className="rounded bg-cyan/20 px-1 font-medium text-cyan-600">
-            {part}
-          </span>
-        ) : (
-          <span key={i}>{part}</span>
-        ),
-      )}
-    </>
-  );
 }
 
 function timeAgo(iso: string) {
@@ -118,9 +100,14 @@ export default function TaskProfile() {
             </Field>
             <Field label="Source">
               <div className="flex flex-wrap gap-1.5">
-                <SourceChip source={task.source} />
+                <SourceChip source={task.source} auto={task.autoCaptured} />
                 <RoleChip role={task.role} />
                 {task.createdBy && <span className="text-xs text-ink/50">by {nameOf(state, task.createdBy)}</span>}
+                {task.messageId && (
+                  <Link href={`/chat?c=${encodeURIComponent(state.messages.find((m) => m.id === task.messageId)?.channelId ?? "general")}`} className="text-xs text-cyan-600 hover:underline">
+                    💬 View in chat
+                  </Link>
+                )}
               </div>
             </Field>
           </section>

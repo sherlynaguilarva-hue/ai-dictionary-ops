@@ -5,9 +5,10 @@
  * notifications. Each rule has a key so it fires only once. Prototype:
  * nothing leaves the app — "emails" are only logged as simulated.
  */
-import type { CheckIn, DailyUpdate, Notification, NotificationKind, State, Task, User } from "./types";
+import type { CheckIn, DailyUpdate, State, Task, User } from "./types";
 import { addDays, daysBetween, fmt, toISODate } from "./dates";
-import { addComment, completeTask, setStatus } from "./engine";
+import { addComment, completeTask, notify, setStatus } from "./engine";
+import { autoCaptureSuggestions } from "./chat";
 import { nowISO } from "./clock";
 import { uid } from "./id";
 
@@ -78,16 +79,6 @@ export function submitCheckIn(state: State, userId: string, date: string, entrie
   }
   state.checkins.push({ userId, date, submittedAt: at, taskCount: entries.length });
   state.activity.unshift({ id: uid("act"), at, agent: "Coach", message: `${me.name} submitted today's entry (${entries.length} task${entries.length === 1 ? "" : "s"}).`, href: "/check-in?tab=team" });
-}
-
-function notify(state: State, userId: string, kind: NotificationKind, key: string | null, title: string, body: string, href?: string) {
-  if (key) {
-    if (state.firedKeys.includes(key)) return false;
-    state.firedKeys.push(key);
-  }
-  const n: Notification = { id: uid("ntf"), userId, kind, title, body, href, at: nowISO(), read: false };
-  state.notifications.unshift(n);
-  return true;
 }
 
 /** Run every reminder rule for the moment `at`. Returns how many notifications were created. */
@@ -166,6 +157,9 @@ export function runAutomations(state: State, at: Date): number {
       if (hour >= NUDGE_HOUR) notify(state, u.id, "nudge", `nudge:${u.id}:${date}`, "📝 Still missing today's entry", "Your PM will see “No update” tomorrow morning.", "/check-in");
     }
   }
+
+  // Chat suggestions nobody acted on become tasks automatically.
+  autoCaptureSuggestions(state, at);
 
   return state.notifications.length - before;
 }
